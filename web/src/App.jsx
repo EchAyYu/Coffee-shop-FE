@@ -1,107 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getProducts, getCategories, createOrder } from "./api";
 
-// ---- Mock Data (can be replaced by real API later) ----
-const CATEGORIES = [
-  { key: "coffee", label: "COFFEE" },
-  { key: "freeze", label: "FREEZE" },
-  { key: "tea", label: "TEA" },
-  { key: "food", label: "FOOD" },
-];
-
-const PRODUCTS = [
-  // Coffee
-  {
-    id: "c1",
-    name: "Americano",
-    priceBase: 45000,
-    category: "coffee",
-    sizes: [
-      { key: "S", delta: 0 },
-      { key: "M", delta: 10000 },
-      { key: "L", delta: 20000 },
-    ],
-    desc: "A shot of espresso topped with hot water.",
-    image: "https://placehold.co/600x800?text=Americano",
-    badges: ["HOT", "ICE"],
-  },
-  {
-    id: "c2",
-    name: "Phin Sữa Đá",
-    priceBase: 29000,
-    category: "coffee",
-    sizes: [
-      { key: "S", delta: 0 },
-      { key: "M", delta: 6000 },
-      { key: "L", delta: 12000 },
-    ],
-    desc: "Vietnamese milk coffee (iced).",
-    image: "https://placehold.co/600x800?text=Phin+Sua+Da",
-    badges: ["SIGNATURE"],
-  },
-  {
-    id: "c3",
-    name: "Cappuccino",
-    priceBase: 65000,
-    category: "coffee",
-    sizes: [
-      { key: "S", delta: 0 },
-      { key: "M", delta: 6000 },
-      { key: "L", delta: 12000 },
-    ],
-    desc: "Espresso with steamed milk foam.",
-    image: "https://placehold.co/600x800?text=Cappuccino",
-    badges: ["MILKY"],
-  },
-  // Freeze
-  {
-    id: "f1",
-    name: "Cookies & Cream Freeze",
-    priceBase: 59000,
-    category: "freeze",
-    sizes: [
-      { key: "S", delta: 0 },
-      { key: "M", delta: 7000 },
-      { key: "L", delta: 14000 },
-    ],
-    desc: "Ice-blended beverage w/ cookies.",
-    image: "https://placehold.co/600x800?text=Freeze+Cookies",
-    badges: ["BLENDED"],
-  },
-  // Tea
-  {
-    id: "t1",
-    name: "Trà Sen Vàng",
-    priceBase: 49000,
-    category: "tea",
-    sizes: [
-      { key: "S", delta: 0 },
-      { key: "M", delta: 6000 },
-      { key: "L", delta: 12000 },
-    ],
-    desc: "Vietnamese lotus tea with milk foam.",
-    image: "https://placehold.co/600x800?text=Tra+Sen+Vang",
-    badges: ["BEST SELLER"],
-  },
-  // Food
-  {
-    id: "fd1",
-    name: "Bánh Mì Gà Nướng",
-    priceBase: 39000,
-    category: "food",
-    sizes: [{ key: "M", delta: 0 }],
-    desc: "Grilled chicken baguette.",
-    image: "https://placehold.co/600x800?text=Banh+Mi+Ga",
-    badges: ["NEW"],
-  },
-];
 
 // ---- Utilities ----
 const currency = (v) => v.toLocaleString("vi-VN") + " ₫";
-
-function priceWithSize(product, sizeKey) {
-  const size = product.sizes.find((s) => s.key === sizeKey) ?? product.sizes[0];
-  return product.priceBase + (size?.delta ?? 0);
-}
 
 // ---- Components ----
 function TopBar({ onOpenAuth, onOpenCart, isAuthed }) {
@@ -136,21 +38,33 @@ function TopBar({ onOpenAuth, onOpenCart, isAuthed }) {
   );
 }
 
-function CategoryTabs({ active, onChange }) {
+function CategoryTabs({ categories, active, onChange }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {CATEGORIES.map((c) => (
+      <button
+        key="all"
+        onClick={() => onChange("all")}
+        className={
+          "px-4 py-2 rounded-full text-sm border transition " +
+          (active === "all"
+            ? "bg-red-700 text-white border-red-700 shadow"
+            : "hover:bg-neutral-50")
+        }
+      >
+        Tất cả
+      </button>
+      {categories.map((c) => (
         <button
-          key={c.key}
-          onClick={() => onChange(c.key)}
+          key={c.id_dm}
+          onClick={() => onChange(c.id_dm)}
           className={
             "px-4 py-2 rounded-full text-sm border transition " +
-            (active === c.key
+            (active === c.id_dm
               ? "bg-red-700 text-white border-red-700 shadow"
               : "hover:bg-neutral-50")
           }
         >
-          {c.label}
+          {c.ten_dm}
         </button>
       ))}
     </div>
@@ -193,21 +107,16 @@ function ProductCard({ product, onOpenDetail }) {
     >
       <div className="aspect-[3/4] bg-neutral-100 overflow-hidden">
         <img
-          src={product.image}
-          alt={product.name}
+          src={product.anh}
+          alt={product.ten_mon}
           className="h-full w-full object-cover group-hover:scale-105 transition"
         />
       </div>
       <div className="p-3 flex flex-col gap-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          {product.badges?.map((b) => (
-            <span key={b} className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-100">{b}</span>
-          ))}
-        </div>
-        <div className="font-medium leading-tight">{product.name}</div>
-        <div className="text-sm text-neutral-500 line-clamp-2 min-h-[2.5lh]">{product.desc}</div>
+        <div className="font-medium leading-tight">{product.ten_mon}</div>
+        <div className="text-sm text-neutral-500 line-clamp-2 min-h-[2.5lh]">{product.mo_ta}</div>
         <div className="pt-1 font-semibold text-red-700">
-          {currency(product.priceBase)}+
+          {currency(Number(product.gia))}
         </div>
       </div>
     </button>
@@ -218,19 +127,16 @@ function ProductGrid({ items, onOpenDetail }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       {items.map((p) => (
-        <ProductCard key={p.id} product={p} onOpenDetail={onOpenDetail} />)
-      )}
+        <ProductCard key={p.id_mon} product={p} onOpenDetail={onOpenDetail} />
+      ))}
     </div>
   );
 }
 
 function DetailModal({ product, onClose, onAdd }) {
-  const [size, setSize] = useState(product?.sizes?.[0]?.key ?? "M");
   const [qty, setQty] = useState(1);
 
   if (!product) return null;
-  const calcPrice = priceWithSize(product, size);
-
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}>
       <div
@@ -238,24 +144,10 @@ function DetailModal({ product, onClose, onAdd }) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="grid md:grid-cols-2">
-          <img src={product.image} alt={product.name} className="w-full h-72 md:h-full object-cover" />
+          <img src={product.anh} alt={product.ten_mon} className="w-full h-72 md:h-full object-cover" />
           <div className="p-5 flex flex-col gap-3">
-            <h3 className="text-xl font-semibold">{product.name}</h3>
-            <p className="text-sm text-neutral-600">{product.desc}</p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {product.sizes.map((s) => (
-                <button
-                  key={s.key}
-                  onClick={() => setSize(s.key)}
-                  className={
-                    "px-4 py-2 rounded-xl border text-sm " +
-                    (size === s.key ? "bg-red-700 text-white border-red-700" : "hover:bg-neutral-50")
-                  }
-                >
-                  Size {s.key}
-                </button>
-              ))}
-            </div>
+            <h3 className="text-xl font-semibold">{product.ten_mon}</h3>
+            <p className="text-sm text-neutral-600">{product.mo_ta}</p>
             <div className="flex items-center gap-3 pt-1">
               <div className="text-sm text-neutral-600">Số lượng</div>
               <div className="flex items-center gap-1">
@@ -265,12 +157,12 @@ function DetailModal({ product, onClose, onAdd }) {
               </div>
             </div>
             <div className="mt-auto flex items-center justify-between">
-              <div className="text-lg font-semibold text-red-700">{currency(calcPrice)}</div>
+              <div className="text-lg font-semibold text-red-700">{currency(Number(product.gia) * qty)}</div>
               <div className="flex items-center gap-2">
                 <button className="px-4 py-2 rounded-xl border" onClick={onClose}>Đóng</button>
                 <button
                   className="px-4 py-2 rounded-xl bg-red-700 text-white"
-                  onClick={() => onAdd({ product, size, qty, unitPrice: calcPrice })}
+                  onClick={() => onAdd({ product, qty, unitPrice: Number(product.gia) })}
                 >
                   Thêm vào giỏ
                 </button>
@@ -296,10 +188,9 @@ function CartDrawer({ open, onClose, items, onChangeQty, onRemove, onCheckout })
           {items.length === 0 && <div className="text-sm text-neutral-500">Chưa có sản phẩm nào.</div>}
           {items.map((it, idx) => (
             <div key={idx} className="flex gap-3 border rounded-xl p-3">
-              <img src={it.product.image} className="w-16 h-16 rounded-lg object-cover" />
+              <img src={it.product.anh} className="w-16 h-16 rounded-lg object-cover" />
               <div className="flex-1">
-                <div className="font-medium leading-tight">{it.product.name}</div>
-                <div className="text-xs text-neutral-500">Size {it.size}</div>
+                <div className="font-medium leading-tight">{it.product.ten_mon}</div>
                 <div className="flex items-center gap-2 pt-1">
                   <button className="w-7 h-7 rounded border" onClick={() => onChangeQty(idx, Math.max(1, it.qty - 1))}>-</button>
                   <div className="w-8 text-center text-sm">{it.qty}</div>
@@ -324,10 +215,26 @@ function CartDrawer({ open, onClose, items, onChangeQty, onRemove, onCheckout })
 
 function AuthModal({ open, onClose, onSuccess }) {
   const [mode, setMode] = useState("login");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   if (!open) return null;
+
+  async function handleSubmit() {
+    try {
+      if (mode === "login") {
+        const res = await login({ ten_dn: username, mat_khau: password });
+        onSuccess(res.data.account);
+      } else {
+        const res = await register({ ten_dn: username, mat_khau: password, ho_ten: username });
+        onSuccess(res.data.account);
+      }
+      onClose();
+    } catch (err) {
+      alert("Lỗi đăng nhập/đăng ký");
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-white p-5" onMouseDown={(e) => e.stopPropagation()}>
@@ -336,14 +243,22 @@ function AuthModal({ open, onClose, onSuccess }) {
           <button className="px-3 py-1 rounded-lg border" onClick={onClose}>Đóng</button>
         </div>
         <div className="pt-4 space-y-3">
-          {mode === "register" && (
-            <input className="w-full px-3 py-2 rounded-xl border" placeholder="Họ và tên" />
-          )}
-          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Mật khẩu" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            className="w-full px-3 py-2 rounded-xl border"
+            placeholder="Tên đăng nhập"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            className="w-full px-3 py-2 rounded-xl border"
+            placeholder="Mật khẩu"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <button
             className="w-full px-4 py-3 rounded-xl bg-red-700 text-white font-semibold"
-            onClick={() => { onSuccess({ email }); onClose(); }}
+            onClick={handleSubmit}
           >
             {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
           </button>
@@ -378,7 +293,9 @@ function SectionHeader({ title, subtitle }) {
 }
 
 export default function App() {
-  const [activeCat, setActiveCat] = useState(CATEGORIES[0].key);
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [activeCat, setActiveCat] = useState("all");
   const [sortBy, setSortBy] = useState("default");
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState(null);
@@ -387,44 +304,67 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [user, setUser] = useState(null);
 
+  useEffect(() => {
+    getCategories().then(res => setCategories(res.data)).catch(console.error);
+    getProducts().then(res => setProducts(res.data)).catch(err => console.error(err));
+  }, []);
+
   const filtered = useMemo(() => {
-    let list = PRODUCTS.filter((p) => p.category === activeCat);
+    let list = products;
+    if (activeCat !== "all") {
+      list = list.filter((p) => p.id_dm === activeCat);
+    }
     if (query.trim()) {
       const q = query.toLowerCase();
-      list = list.filter((p) => p.name.toLowerCase().includes(q));
+      list = list.filter((p) => p.ten_mon.toLowerCase().includes(q));
     }
     switch (sortBy) {
       case "name-asc":
-        list.sort((a, b) => a.name.localeCompare(b.name));
+        list.sort((a, b) => a.ten_mon.localeCompare(b.ten_mon));
         break;
       case "name-desc":
-        list.sort((a, b) => b.name.localeCompare(a.name));
+        list.sort((a, b) => b.ten_mon.localeCompare(a.ten_mon));
         break;
       case "price-asc":
-        list.sort((a, b) => a.priceBase - b.priceBase);
+        list.sort((a, b) => Number(a.gia) - Number(b.gia));
         break;
       case "price-desc":
-        list.sort((a, b) => b.priceBase - a.priceBase);
+        list.sort((a, b) => Number(b.gia) - Number(a.gia));
         break;
       default:
         break;
     }
     return list;
-  }, [activeCat, sortBy, query]);
+  }, [products, activeCat, sortBy, query]);
 
-  function addToCart({ product, size, qty, unitPrice }) {
-    setItems((prev) => [...prev, { product, size, qty, unitPrice }]);
+  function addToCart({ product, qty, unitPrice }) {
+    setItems((prev) => [...prev, { product, qty, unitPrice }]);
     setDetail(null);
     setCartOpen(true);
   }
 
-  function handleCheckout() {
-    if (!user) {
-      setAuthOpen(true);
-      return;
+  async function handleCheckout() {
+    if (items.length === 0) return;
+    try {
+      await createOrder({
+        ho_ten_nhan: "Khách lẻ",
+        sdt_nhan: "0123456789",
+        dia_chi_nhan: "Quán Highlands",
+        pttt: "COD",
+        items: items.map(it => ({
+          id_mon: it.product.id_mon,
+          so_luong: it.qty
+        }))
+      });
+      alert("Đặt hàng thành công!");
+      setItems([]);
+      setCartOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi đặt hàng");
     }
-    alert("[Demo] Tiến hành thanh toán – kết nối VN PAY sẽ được tích hợp ở bước sau.");
   }
+  
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -434,7 +374,8 @@ export default function App() {
         {/* Hero */}
         <section className="rounded-3xl overflow-hidden bg-gradient-to-br from-amber-50 to-red-50 border">
           <div className="grid md:grid-cols-2">
-            <img src="https://placehold.co/1200x800?text=Highlands+Hero" className="w-full h-full object-cover" />
+          <img src="/images/Hero.jpg" alt="Highlands Hero" className="w-full h-full object-cover" />
+
             <div className="p-8 md:p-12 flex flex-col justify-center">
               <h1 className="text-3xl md:text-4xl font-bold leading-tight">Nước ngon thưởng vị · Bánh ngon no đầy</h1>
               <p className="mt-3 text-neutral-600">Lấy cảm hứng từ cấu trúc thực đơn Highlands Coffee: Coffee · Freeze · Tea · Food. Chọn món yêu thích & thêm vào giỏ hàng.</p>
@@ -449,7 +390,7 @@ export default function App() {
         <section id="menu" className="space-y-5">
           <SectionHeader title="Thực đơn" subtitle="Dựa theo nhóm COFFEE · FREEZE · TEA · FOOD" />
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <CategoryTabs active={activeCat} onChange={setActiveCat} />
+          <CategoryTabs categories={categories} active={activeCat} onChange={setActiveCat} />
             <SortBar sortBy={sortBy} setSortBy={setSortBy} query={query} setQuery={setQuery} />
           </div>
           <ProductGrid items={filtered} onOpenDetail={setDetail} />
@@ -476,7 +417,7 @@ export default function App() {
 
       <footer className="mt-12 border-t">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500">
-          © {new Date().getFullYear()} Highlands‑style demo. Tiếp theo: kết nối API thật, VN PAY, Rasa Chatbot.
+          © {new Date().getFullYear()} Highlands-style demo. Tiếp theo: kết nối API categories, Dashboard Admin, VN PAY, Chatbot.
         </div>
       </footer>
     </div>
