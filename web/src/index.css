@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --header-h: 64px;
+}
+.container-lg { @apply max-w-6xl mx-auto px-4; }
+.btn { @apply px-4 py-2 rounded-md bg-maroon text-cream hover:bg-coffee transition; }
+.badge { @apply inline-block text-xs px-2 py-0.5 rounded bg-gold/20 text-gold; }
+.card { @apply bg-white rounded-2xl shadow-sm border border-cream; }
+.nav-link { @apply text-cream/90 hover:text-white; }
