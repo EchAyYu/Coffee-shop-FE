@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getProducts, getCategories, createOrder } from "./api";
-
+import { register, login } from "./api";
 
 // ---- Utilities ----
 const currency = (v) => v.toLocaleString("vi-VN") + " ₫";
@@ -38,11 +38,10 @@ function TopBar({ onOpenAuth, onOpenCart, isAuthed }) {
   );
 }
 
-function CategoryTabs({ categories, active, onChange }) {
+function CategoryTabs({ active, onChange, categories }) {
   return (
     <div className="flex flex-wrap gap-2">
       <button
-        key="all"
         onClick={() => onChange("all")}
         className={
           "px-4 py-2 rounded-full text-sm border transition " +
@@ -53,6 +52,7 @@ function CategoryTabs({ categories, active, onChange }) {
       >
         Tất cả
       </button>
+
       {categories.map((c) => (
         <button
           key={c.id_dm}
@@ -70,6 +70,7 @@ function CategoryTabs({ categories, active, onChange }) {
     </div>
   );
 }
+
 
 function SortBar({ sortBy, setSortBy, query, setQuery }) {
   return (
@@ -215,71 +216,86 @@ function CartDrawer({ open, onClose, items, onChangeQty, onRemove, onCheckout })
 
 function AuthModal({ open, onClose, onSuccess }) {
   const [mode, setMode] = useState("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [hoTen, setHoTen] = useState("");
+  const [email, setEmail] = useState("");
+  const [sdt, setSdt] = useState("");
+  const [diaChi, setDiaChi] = useState("");
+  const [tenDn, setTenDn] = useState("");
+  const [matKhau, setMatKhau] = useState("");
 
   if (!open) return null;
 
   async function handleSubmit() {
     try {
-      if (mode === "login") {
-        const res = await login({ ten_dn: username, mat_khau: password });
-        onSuccess(res.data.account);
+      if (mode === "register") {
+        const res = await register({
+          ten_dn: tenDn,
+          mat_khau: matKhau,
+          ho_ten: hoTen,
+          email,
+          sdt,
+          dia_chi: diaChi,
+        });
+        alert("Đăng ký thành công!");
+        onSuccess(res.data.customer);
       } else {
-        const res = await register({ ten_dn: username, mat_khau: password, ho_ten: username });
+        const res = await login({ ten_dn: tenDn, mat_khau: matKhau });
+        localStorage.setItem("token", res.data.token);
+        alert("Đăng nhập thành công!");
         onSuccess(res.data.account);
       }
       onClose();
     } catch (err) {
-      alert("Lỗi đăng nhập/đăng ký");
+      alert("Lỗi: " + (err.response?.data?.message || "Server error"));
     }
   }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-5" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{mode === "login" ? "Đăng nhập" : "Đăng ký"}</h3>
-          <button className="px-3 py-1 rounded-lg border" onClick={onClose}>Đóng</button>
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-6"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold mb-4">
+          {mode === "login" ? "Đăng nhập" : "Đăng ký"}
+        </h3>
+        <div className="space-y-3">
+          {mode === "register" && (
+            <>
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Họ và tên"
+                value={hoTen} onChange={(e) => setHoTen(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Email"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Số điện thoại"
+                value={sdt} onChange={(e) => setSdt(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Địa chỉ"
+                value={diaChi} onChange={(e) => setDiaChi(e.target.value)} />
+            </>
+          )}
+          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Tên đăng nhập"
+            value={tenDn} onChange={(e) => setTenDn(e.target.value)} />
+          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Mật khẩu" type="password"
+            value={matKhau} onChange={(e) => setMatKhau(e.target.value)} />
         </div>
-        <div className="pt-4 space-y-3">
-          <input
-            className="w-full px-3 py-2 rounded-xl border"
-            placeholder="Tên đăng nhập"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <input
-            className="w-full px-3 py-2 rounded-xl border"
-            placeholder="Mật khẩu"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+        <div className="flex justify-between items-center mt-4">
           <button
-            className="w-full px-4 py-3 rounded-xl bg-red-700 text-white font-semibold"
+            className="px-4 py-2 rounded-xl bg-red-700 text-white"
             onClick={handleSubmit}
           >
-            {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+            {mode === "login" ? "Đăng nhập" : "Đăng ký"}
           </button>
-          <div className="text-sm text-center">
-            {mode === "login" ? (
-              <span>
-                Chưa có tài khoản?{" "}
-                <button className="text-red-700 underline" onClick={() => setMode("register")}>Đăng ký</button>
-              </span>
-            ) : (
-              <span>
-                Đã có tài khoản?{" "}
-                <button className="text-red-700 underline" onClick={() => setMode("login")}>Đăng nhập</button>
-              </span>
-            )}
-          </div>
+          <button
+            className="text-sm text-red-700 underline"
+            onClick={() => setMode(mode === "login" ? "register" : "login")}
+          >
+            {mode === "login" ? "Tạo tài khoản" : "Đã có tài khoản?"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
+
 
 function SectionHeader({ title, subtitle }) {
   return (
@@ -305,9 +321,23 @@ export default function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    getCategories().then(res => setCategories(res.data)).catch(console.error);
-    getProducts().then(res => setProducts(res.data)).catch(err => console.error(err));
+    if (activeCat === "all") {
+      getProducts().then(res => setProducts(res.data));
+    } else {
+      getProducts({ category: activeCat }).then(res => setProducts(res.data));
+    }
+  }, [activeCat]);
+
+  useEffect(() => {
+    getCategories()
+      .then((res) => setCategories(res.data))
+      .catch(console.error);
+  
+    getProducts()
+      .then((res) => setProducts(res.data))
+      .catch(console.error);
   }, []);
+  
 
   const filtered = useMemo(() => {
     let list = products;
@@ -344,26 +374,37 @@ export default function App() {
   }
 
   async function handleCheckout() {
-    if (items.length === 0) return;
+    if (!user) {
+      setAuthOpen(true);
+      return;
+    }
+  
     try {
-      await createOrder({
-        ho_ten_nhan: "Khách lẻ",
-        sdt_nhan: "0123456789",
-        dia_chi_nhan: "Quán Highlands",
+      const token = localStorage.getItem("token");
+      const payload = {
+        id_kh: user.id_kh, // nếu login trả về kèm id_kh
+        ho_ten_nhan: user.ho_ten || "Khách vãng lai",
+        sdt_nhan: user.sdt || "000000000",
+        dia_chi_nhan: user.dia_chi || "Chưa cập nhật",
         pttt: "COD",
         items: items.map(it => ({
           id_mon: it.product.id_mon,
-          so_luong: it.qty
+          so_luong: it.qty,
         }))
+      };
+  
+      await createOrder(payload, {
+        headers: { Authorization: `Bearer ${token}` }
       });
+  
       alert("Đặt hàng thành công!");
       setItems([]);
-      setCartOpen(false);
     } catch (err) {
       console.error(err);
-      alert("Lỗi đặt hàng");
+      alert("Không thể đặt hàng!");
     }
   }
+  
   
 
   return (
