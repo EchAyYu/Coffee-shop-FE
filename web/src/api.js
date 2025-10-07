@@ -1,20 +1,20 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:4000/api", // đổi nếu backend chạy port khác
+  baseURL: import.meta.env.VITE_API_BASE,
 });
 
 //
 // 🔹 AUTH
 //
 export const register = (data) => api.post("/auth/register", data);
-export const login = (data) => api.post("/auth/login", data);
+export const login    = (data) => api.post("/auth/login", data);
 
 //
 // 🔹 PRODUCTS
 //
-export const getProducts = (params) => api.get("/products", { params }); // lấy ds sản phẩm, có thể lọc theo category, q
-export const getProductById = (id) => api.get(`/products/${id}`);        // lấy 1 sản phẩm
+export const getProducts   = (params) => api.get("/products", { params });
+export const getProductById= (id)     => api.get(`/products/${id}`);      // lấy 1 sản phẩm
 export const createProduct = (data) => api.post("/products", data);      // thêm sản phẩm
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data); // cập nhật sản phẩm
 export const deleteProduct = (id) => api.delete(`/products/${id}`);      // xóa sản phẩm
@@ -46,3 +46,5 @@ export const updateCustomer = (id, data) => api.put(`/customers/${id}`, data);
 export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
 
 export default api;
+
+export { api };

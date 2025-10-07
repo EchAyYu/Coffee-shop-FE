@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import ProductCard from '../components/ProductCard'
 
-export default function Menu(){
-  const [data, setData] = useState([])
-  const [category, setCategory] = useState('')
-  const [q, setQ] = useState('')
+export default function Menu() {
+  const [data, setData] = useState([]);
+  const [category, setCategory] = useState("");
+  const [q, setQ] = useState("");
 
-  useEffect(() => {
-    api.get('/products', { params: { category, q } }).then(r => setData(r.data))
-  }, [category, q])
+ useEffect(() => {
+    api.get("/products", { params: { category, q } })
+       .then(r => setData(r.data))
+       .catch(() => setData([]));
+  }, [category, q]);
 
   return (
     <section className="container-lg py-8">
