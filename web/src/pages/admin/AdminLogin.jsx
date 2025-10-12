@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { login } from "../api";
+import { login } from "../../api/api";
 
 export default function AdminLogin({ onSuccess }) {
   const [tenDn, setTenDn] = useState("");

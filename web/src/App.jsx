@@ -1,9 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { getProducts, getCategories, createOrder } from "./api";
-import { register, login } from "./api";
+import {
+  getProducts,
+  getCategories,
+  createOrder,
+  register,
+  login,
+  me,
+} from "./api/api";
 
 // ---- Utilities ----
-const currency = (v) => v.toLocaleString("vi-VN") + " ₫";
+const currency = (v) => (Number(v) || 0).toLocaleString("vi-VN") + " ₫";
+
+// ---- Normalizers ----
+const normCategory = (c) => ({
+  id_dm: c?.id_dm ?? c?.id ?? c?.categoryId ?? c?.category_id,
+  ten_dm: c?.ten_dm ?? c?.name ?? c?.title ?? "Danh mục",
+});
+
+const normProduct = (p) => ({
+  id_mon: p?.id_mon ?? p?.id,
+  ten_mon: p?.ten_mon ?? p?.name ?? "",
+  gia: p?.gia ?? p?.price ?? 0,
+  anh: p?.anh ?? p?.imageUrl ?? p?.image_url ?? "/images/placeholder.png",
+  mo_ta: p?.mo_ta ?? p?.description ?? "",
+  id_dm: p?.id_dm ?? p?.categoryId ?? p?.category_id,
+});
 
 // ---- Components ----
 function TopBar({ onOpenAuth, onOpenCart, isAuthed }) {
@@ -16,20 +37,13 @@ function TopBar({ onOpenAuth, onOpenCart, isAuthed }) {
         </div>
         <nav className="ml-auto flex items-center gap-2">
           {!isAuthed ? (
-            <button
-              className="px-4 py-2 rounded-xl border hover:bg-neutral-50 text-sm"
-              onClick={onOpenAuth}
-            >
+            <button className="px-4 py-2 rounded-xl border hover:bg-neutral-50 text-sm" onClick={onOpenAuth}>
               Đăng nhập / Đăng ký
             </button>
           ) : (
             <div className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded-lg">Đã đăng nhập</div>
           )}
-          <button
-            className="px-3 py-2 rounded-xl border hover:bg-neutral-50 text-sm"
-            onClick={onOpenCart}
-            aria-label="Mở giỏ hàng"
-          >
+          <button className="px-3 py-2 rounded-xl border hover:bg-neutral-50 text-sm" onClick={onOpenCart} aria-label="Mở giỏ hàng">
             🛒 Giỏ hàng
           </button>
         </nav>
@@ -45,23 +59,18 @@ function CategoryTabs({ active, onChange, categories }) {
         onClick={() => onChange("all")}
         className={
           "px-4 py-2 rounded-full text-sm border transition " +
-          (active === "all"
-            ? "bg-red-700 text-white border-red-700 shadow"
-            : "hover:bg-neutral-50")
+          (active === "all" ? "bg-red-700 text-white border-red-700 shadow" : "hover:bg-neutral-50")
         }
       >
         Tất cả
       </button>
-
       {categories.map((c) => (
         <button
           key={c.id_dm}
           onClick={() => onChange(c.id_dm)}
           className={
             "px-4 py-2 rounded-full text-sm border transition " +
-            (active === c.id_dm
-              ? "bg-red-700 text-white border-red-700 shadow"
-              : "hover:bg-neutral-50")
+            (active === c.id_dm ? "bg-red-700 text-white border-red-700 shadow" : "hover:bg-neutral-50")
           }
         >
           {c.ten_dm}
@@ -70,7 +79,6 @@ function CategoryTabs({ active, onChange, categories }) {
     </div>
   );
 }
-
 
 function SortBar({ sortBy, setSortBy, query, setQuery }) {
   return (
@@ -84,11 +92,7 @@ function SortBar({ sortBy, setSortBy, query, setQuery }) {
         />
         <span className="absolute left-3 top-1/2 -translate-y-1/2">🔎</span>
       </div>
-      <select
-        value={sortBy}
-        onChange={(e) => setSortBy(e.target.value)}
-        className="px-3 py-2 rounded-xl border"
-      >
+      <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-2 rounded-xl border">
         <option value="default">Sắp xếp: Mặc định</option>
         <option value="name-asc">Tên A → Z</option>
         <option value="name-desc">Tên Z → A</option>
@@ -102,23 +106,14 @@ function SortBar({ sortBy, setSortBy, query, setQuery }) {
 
 function ProductCard({ product, onOpenDetail }) {
   return (
-    <button
-      className="group rounded-2xl overflow-hidden bg-white border hover:shadow-md text-left"
-      onClick={() => onOpenDetail(product)}
-    >
+    <button className="group rounded-2xl overflow-hidden bg-white border hover:shadow-md text-left" onClick={() => onOpenDetail(product)}>
       <div className="aspect-[3/4] bg-neutral-100 overflow-hidden">
-        <img
-          src={product.anh}
-          alt={product.ten_mon}
-          className="h-full w-full object-cover group-hover:scale-105 transition"
-        />
+        <img src={product.anh} alt={product.ten_mon} className="h-full w-full object-cover group-hover:scale-105 transition" />
       </div>
       <div className="p-3 flex flex-col gap-1">
         <div className="font-medium leading-tight">{product.ten_mon}</div>
         <div className="text-sm text-neutral-500 line-clamp-2 min-h-[2.5lh]">{product.mo_ta}</div>
-        <div className="pt-1 font-semibold text-red-700">
-          {currency(Number(product.gia))}
-        </div>
+        <div className="pt-1 font-semibold text-red-700">{currency(product.gia)}</div>
       </div>
     </button>
   );
@@ -136,14 +131,10 @@ function ProductGrid({ items, onOpenDetail }) {
 
 function DetailModal({ product, onClose, onAdd }) {
   const [qty, setQty] = useState(1);
-
   if (!product) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}>
-      <div
-        className="w-full max-w-2xl rounded-2xl bg-white overflow-hidden shadow-xl"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+      <div className="w-full max-w-2xl rounded-2xl bg-white overflow-hidden shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
         <div className="grid md:grid-cols-2">
           <img src={product.anh} alt={product.ten_mon} className="w-full h-72 md:h-full object-cover" />
           <div className="p-5 flex flex-col gap-3">
@@ -228,7 +219,7 @@ function AuthModal({ open, onClose, onSuccess }) {
   async function handleSubmit() {
     try {
       if (mode === "register") {
-        const res = await register({
+        await register({
           ten_dn: tenDn,
           mat_khau: matKhau,
           ho_ten: hoTen,
@@ -236,13 +227,14 @@ function AuthModal({ open, onClose, onSuccess }) {
           sdt,
           dia_chi: diaChi,
         });
-        alert("Đăng ký thành công!");
-        onSuccess(res.data.customer);
+        alert("Đăng ký thành công! Hãy đăng nhập.");
+        setMode("login");
+        return;
       } else {
         const res = await login({ ten_dn: tenDn, mat_khau: matKhau });
-        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("access_token", res.data.accessToken);
         alert("Đăng nhập thành công!");
-        onSuccess(res.data.account);
+        onSuccess(res.data.user);
       }
       onClose();
     } catch (err) {
@@ -252,42 +244,25 @@ function AuthModal({ open, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}>
-      <div
-        className="w-full max-w-md rounded-2xl bg-white p-6"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold mb-4">
-          {mode === "login" ? "Đăng nhập" : "Đăng ký"}
-        </h3>
+      <div className="w-full max-w-md rounded-2xl bg-white p-6" onMouseDown={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold mb-4">{mode === "login" ? "Đăng nhập" : "Đăng ký"}</h3>
         <div className="space-y-3">
           {mode === "register" && (
             <>
-              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Họ và tên"
-                value={hoTen} onChange={(e) => setHoTen(e.target.value)} />
-              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Email"
-                value={email} onChange={(e) => setEmail(e.target.value)} />
-              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Số điện thoại"
-                value={sdt} onChange={(e) => setSdt(e.target.value)} />
-              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Địa chỉ"
-                value={diaChi} onChange={(e) => setDiaChi(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Họ và tên" value={hoTen} onChange={(e) => setHoTen(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Số điện thoại" value={sdt} onChange={(e) => setSdt(e.target.value)} />
+              <input className="w-full px-3 py-2 rounded-xl border" placeholder="Địa chỉ" value={diaChi} onChange={(e) => setDiaChi(e.target.value)} />
             </>
           )}
-          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Tên đăng nhập"
-            value={tenDn} onChange={(e) => setTenDn(e.target.value)} />
-          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Mật khẩu" type="password"
-            value={matKhau} onChange={(e) => setMatKhau(e.target.value)} />
+          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Tên đăng nhập" value={tenDn} onChange={(e) => setTenDn(e.target.value)} />
+          <input className="w-full px-3 py-2 rounded-xl border" placeholder="Mật khẩu" type="password" value={matKhau} onChange={(e) => setMatKhau(e.target.value)} />
         </div>
         <div className="flex justify-between items-center mt-4">
-          <button
-            className="px-4 py-2 rounded-xl bg-red-700 text-white"
-            onClick={handleSubmit}
-          >
+          <button className="px-4 py-2 rounded-xl bg-red-700 text-white" onClick={handleSubmit}>
             {mode === "login" ? "Đăng nhập" : "Đăng ký"}
           </button>
-          <button
-            className="text-sm text-red-700 underline"
-            onClick={() => setMode(mode === "login" ? "register" : "login")}
-          >
+          <button className="text-sm text-red-700 underline" onClick={() => setMode(mode === "login" ? "register" : "login")}>
             {mode === "login" ? "Tạo tài khoản" : "Đã có tài khoản?"}
           </button>
         </div>
@@ -295,7 +270,6 @@ function AuthModal({ open, onClose, onSuccess }) {
     </div>
   );
 }
-
 
 function SectionHeader({ title, subtitle }) {
   return (
@@ -320,27 +294,36 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    if (activeCat === "all") {
-      getProducts().then(res => setProducts(res.data));
-    } else {
-      getProducts({ category: activeCat }).then(res => setProducts(res.data));
-    }
-  }, [activeCat]);
-
+  // Load categories + products lần đầu
   useEffect(() => {
     getCategories()
-      .then((res) => setCategories(res.data))
+      .then((res) => {
+        const arr = Array.isArray(res.data?.data) ? res.data.data : res.data;
+        setCategories((arr || []).map(normCategory));
+      })
       .catch(console.error);
-  
+
     getProducts()
-      .then((res) => setProducts(res.data))
+      .then((res) => {
+        const arr = Array.isArray(res.data?.data) ? res.data.data : res.data;
+        setProducts((arr || []).map(normProduct));
+      })
       .catch(console.error);
   }, []);
-  
+
+  // Nếu có token thì lấy thông tin user (giữ trạng thái đăng nhập khi F5)
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    me()
+      .then((res) => setUser(res.data.data))
+      .catch(() => {
+        localStorage.removeItem("access_token");
+      });
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = products;
+    let list = [...products];
     if (activeCat !== "all") {
       list = list.filter((p) => p.id_dm === activeCat);
     }
@@ -378,25 +361,19 @@ export default function App() {
       setAuthOpen(true);
       return;
     }
-  
     try {
-      const token = localStorage.getItem("token");
       const payload = {
-        id_kh: user.id_kh, // nếu login trả về kèm id_kh
-        ho_ten_nhan: user.ho_ten || "Khách vãng lai",
-        sdt_nhan: user.sdt || "000000000",
-        dia_chi_nhan: user.dia_chi || "Chưa cập nhật",
+        id_kh: user.id_kh ?? user.id ?? user.userId,
+        ho_ten_nhan: user.ho_ten || user.fullName || "Khách vãng lai",
+        sdt_nhan: user.sdt || user.phone || "000000000",
+        dia_chi_nhan: user.dia_chi || user.address || "Chưa cập nhật",
         pttt: "COD",
-        items: items.map(it => ({
+        items: items.map((it) => ({
           id_mon: it.product.id_mon,
           so_luong: it.qty,
-        }))
+        })),
       };
-  
-      await createOrder(payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-  
+      await createOrder(payload);
       alert("Đặt hàng thành công!");
       setItems([]);
     } catch (err) {
@@ -404,8 +381,6 @@ export default function App() {
       alert("Không thể đặt hàng!");
     }
   }
-  
-  
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -415,8 +390,7 @@ export default function App() {
         {/* Hero */}
         <section className="rounded-3xl overflow-hidden bg-gradient-to-br from-amber-50 to-red-50 border">
           <div className="grid md:grid-cols-2">
-          <img src="/images/Hero.jpg" alt="Highlands Hero" className="w-full h-full object-cover" />
-
+            <img src="/images/Hero.jpg" alt="Highlands Hero" className="w-full h-full object-cover" />
             <div className="p-8 md:p-12 flex flex-col justify-center">
               <h1 className="text-3xl md:text-4xl font-bold leading-tight">Nước ngon thưởng vị · Bánh ngon no đầy</h1>
               <p className="mt-3 text-neutral-600">Lấy cảm hứng từ cấu trúc thực đơn Highlands Coffee: Coffee · Freeze · Tea · Food. Chọn món yêu thích & thêm vào giỏ hàng.</p>
@@ -431,7 +405,7 @@ export default function App() {
         <section id="menu" className="space-y-5">
           <SectionHeader title="Thực đơn" subtitle="Dựa theo nhóm COFFEE · FREEZE · TEA · FOOD" />
           <div className="flex items-center justify-between gap-3 flex-wrap">
-          <CategoryTabs categories={categories} active={activeCat} onChange={setActiveCat} />
+            <CategoryTabs categories={categories} active={activeCat} onChange={setActiveCat} />
             <SortBar sortBy={sortBy} setSortBy={setSortBy} query={query} setQuery={setQuery} />
           </div>
           <ProductGrid items={filtered} onOpenDetail={setDetail} />
@@ -439,9 +413,7 @@ export default function App() {
       </main>
 
       {/* Modals & Drawers */}
-      {detail && (
-        <DetailModal product={detail} onClose={() => setDetail(null)} onAdd={addToCart} />
-      )}
+      {detail && <DetailModal product={detail} onClose={() => setDetail(null)} onAdd={addToCart} />}
       <CartDrawer
         open={cartOpen}
         onClose={() => setCartOpen(false)}
@@ -450,15 +422,11 @@ export default function App() {
         onRemove={(idx) => setItems((prev) => prev.filter((_, i) => i !== idx))}
         onCheckout={handleCheckout}
       />
-      <AuthModal
-        open={authOpen}
-        onClose={() => setAuthOpen(false)}
-        onSuccess={(u) => setUser(u)}
-      />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={(u) => setUser(u)} />
 
       <footer className="mt-12 border-t">
         <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500">
-          © {new Date().getFullYear()} Highlands-style demo. Tiếp theo: kết nối API categories, Dashboard Admin, VN PAY, Chatbot.
+          © {new Date().getFullYear()} Highlands-style demo. Tiếp theo: kết nối Dashboard Admin, VN PAY, Chatbot.
         </div>
       </footer>
     </div>
