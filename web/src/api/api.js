@@ -113,5 +113,36 @@ export const getOrderById = (id) => api.get(`/orders/${id}`);
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data);
 export const deleteOrder = (id) => api.delete(`/orders/${id}`);
 
+
+// =====================
+// 🔹 BOOKINGS, TABLES, CUSTOMERS
+// =====================
+// request interceptor to attach token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+export const auth = {
+  login: (data) => api.post("/auth/login", data),
+  // add more auth endpoints if present
+};
+
+export const bookings = {
+  list: (params) => api.get("/bookings", { params }),
+  create: (data) => api.post("/bookings", data),
+  getById: (id) => api.get(`/bookings/${id}`),
+  update: (id, data) => api.put(`/bookings/${id}`, data),
+};
+
+export const tables = {
+  list: (params) => api.get("/tables", { params }), // expect ?area=... 
+};
+
+export const customers = {
+  getMyInfo: () => api.get("/customers/me"),
+  update: (data) => api.put("/customers/me", data),
+};
 export default api;
 export { api };
