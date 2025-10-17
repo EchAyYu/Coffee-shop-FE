@@ -1,17 +1,18 @@
 export default function CustomerInfoPage({ user }) {
-  if (!user) {
-    return <p className="text-center text-neutral-600 mt-10">Vui lòng đăng nhập để xem thông tin khách hàng.</p>;
-  }
+  if (!user)
+    return (
+      <div className="text-center py-20 text-neutral-500">
+        Bạn cần đăng nhập để xem thông tin cá nhân.
+      </div>
+    );
 
   return (
-    <div className="max-w-3xl mx-auto py-12">
-      <h2 className="text-3xl font-semibold text-red-700 mb-6 text-center">Thông tin khách hàng</h2>
-      <div className="bg-white shadow rounded-2xl p-6 space-y-3">
-        <div><strong>Họ tên:</strong> {user.ho_ten}</div>
-        <div><strong>Email:</strong> {user.email}</div>
-        <div><strong>SĐT:</strong> {user.sdt}</div>
-        <div><strong>Địa chỉ:</strong> {user.dia_chi}</div>
-      </div>
+    <div className="max-w-lg mx-auto py-12 bg-white rounded-2xl shadow p-6">
+      <h2 className="text-xl font-semibold mb-4">Thông tin khách hàng</h2>
+      <p><strong>Họ tên:</strong> {user.ho_ten || user.fullName}</p>
+      <p><strong>Email:</strong> {user.email}</p>
+      <p><strong>Địa chỉ:</strong> {user.dia_chi || user.address}</p>
+      <p><strong>SĐT:</strong> {user.sdt || user.phone}</p>
     </div>
   );
 }

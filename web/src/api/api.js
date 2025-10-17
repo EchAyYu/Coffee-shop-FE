@@ -7,6 +7,9 @@ const api = axios.create({
   withCredentials: true, // gửi/nhận cookie refresh_token
 });
 
+// debug: show what base is used at runtime
+console.log("API base URL:", import.meta.env.VITE_API_BASE, api.defaults.baseURL);
+
 // ===== Token helpers =====
 export function setToken(token) {
   if (!token) return;
@@ -117,17 +120,6 @@ export const deleteOrder = (id) => api.delete(`/orders/${id}`);
 // =====================
 // 🔹 BOOKINGS, TABLES, CUSTOMERS
 // =====================
-// request interceptor to attach token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-export const auth = {
-  login: (data) => api.post("/auth/login", data),
-  // add more auth endpoints if present
-};
 
 export const bookings = {
   list: (params) => api.get("/bookings", { params }),
