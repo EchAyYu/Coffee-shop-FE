@@ -1,14 +1,16 @@
-// src/api/api.js
+// ================================
+// ☕ Coffee Shop FE - API Service
+// ================================
 import axios from "axios";
 
-// ===== Base config =====
+const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || "http://localhost:4000/api",
-  withCredentials: true, // gửi/nhận cookie refresh_token
+  baseURL: BASE_URL,
+  withCredentials: true, // gửi cookie refresh_token
 });
 
-// debug: show what base is used at runtime
-console.log("API base URL:", import.meta.env.VITE_API_BASE, api.defaults.baseURL);
+console.log("🌐 API base:", BASE_URL);
 
 // ===== Token helpers =====
 export function setToken(token) {
@@ -21,18 +23,18 @@ export function clearToken() {
   delete api.defaults.headers.common.Authorization;
 }
 
-// Gắn token vào mỗi request (nếu có)
+// ===== Request Interceptor =====
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// ===== Auto refresh on 401 =====
+// ===== Auto Refresh on 401 =====
 let refreshing = false;
 let queue = [];
 const flushQueue = (err, token) => {
-  queue.forEach(p => (err ? p.reject(err) : p.resolve(token)));
+  queue.forEach((p) => (err ? p.reject(err) : p.resolve(token)));
   queue = [];
 };
 
@@ -52,8 +54,8 @@ api.interceptors.response.use(
       original._retry = true;
       refreshing = true;
       try {
-        const { data } = await api.post("/auth/refresh"); // BE đọc cookie
-        const newToken = data?.accessToken;
+        const { data } = await api.post("/auth/refresh");
+        const newToken = data?.data?.accessToken || data?.accessToken;
         if (!newToken) throw new Error("No accessToken from refresh");
         setToken(newToken);
         flushQueue(null, newToken);
@@ -74,13 +76,16 @@ api.interceptors.response.use(
 // 🔹 AUTH
 // =====================
 export const register = (data) => api.post("/auth/register", data);
+
 export const login = async (data) => {
   const res = await api.post("/auth/login", data);
-  const token = res?.data?.accessToken;
+  const token = res?.data?.data?.accessToken || res?.data?.accessToken;
   if (token) setToken(token);
   return res;
 };
+
 export const me = () => api.get("/auth/me");
+
 export const logout = async () => {
   try {
     await api.post("/auth/logout");
@@ -116,11 +121,9 @@ export const getOrderById = (id) => api.get(`/orders/${id}`);
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data);
 export const deleteOrder = (id) => api.delete(`/orders/${id}`);
 
-
 // =====================
 // 🔹 BOOKINGS, TABLES, CUSTOMERS
 // =====================
-
 export const bookings = {
   list: (params) => api.get("/bookings", { params }),
   create: (data) => api.post("/bookings", data),
@@ -129,12 +132,13 @@ export const bookings = {
 };
 
 export const tables = {
-  list: (params) => api.get("/tables", { params }), // expect ?area=... 
+  list: (params) => api.get("/tables", { params }),
 };
 
 export const customers = {
   getMyInfo: () => api.get("/customers/me"),
   update: (data) => api.put("/customers/me", data),
 };
+
 export default api;
 export { api };

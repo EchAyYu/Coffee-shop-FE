@@ -1,17 +1,29 @@
-import { Routes, Route, Link } from "react-router-dom";
+// ===============================
+// ☕ Coffee Shop - App.jsx (Updated)
+// ===============================
+import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { me } from "./api/api"; // giữ nguyên import đúng từ backend API
+import { me } from "./api/api";
 import "./index.css";
 
-// ---- Import các trang ----
+// ---- Context ----
+import { AuthProvider, useAuth } from "./context/AuthContext";
+
+// ---- Pages (Public) ----
 import HomePage from "./pages/HomePage";
 import MenuPage from "./pages/MenuPage";
 import AboutPage from "./pages/AboutPage";
 import CareerPage from "./pages/CareerPage";
 import BookingPage from "./pages/BookingPage";
 import CustomerInfoPage from "./pages/CustomerInfoPage";
+import Login from "./pages/Login"; // Trang đăng nhập chung (user/admin)
 
-// ---- Top Navigation ----
+// ---- Admin ----
+import AdminIndex from "./pages/admin"; // index.jsx đã tạo ở bước trước
+
+// ===============================
+// 🔹 Top Navigation
+// ===============================
 function TopBar({ user, onAuthOpen, onCartOpen }) {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-neutral-200">
@@ -34,17 +46,24 @@ function TopBar({ user, onAuthOpen, onCartOpen }) {
           <Link to="/career" className="hover:text-red-700">Tuyển dụng</Link>
           <Link to="/about" className="hover:text-red-700">Về chúng tôi</Link>
           <Link to="/customer" className="hover:text-red-700">Khách hàng</Link>
+
+          {/* Hiện link Admin nếu role=admin */}
+          {user?.role === "admin" && (
+            <Link to="/admin/dashboard" className="text-blue-600 hover:text-blue-800">
+              Quản trị
+            </Link>
+          )}
         </nav>
 
         {/* Tài khoản & giỏ hàng */}
         <div className="flex gap-2 items-center">
           {!user ? (
-            <button
+            <Link
+              to="/login"
               className="px-3 py-2 border rounded-xl hover:bg-neutral-50"
-              onClick={onAuthOpen}
             >
               Đăng nhập
-            </button>
+            </Link>
           ) : (
             <span className="text-sm bg-green-50 text-green-700 px-3 py-1 rounded-lg">
               Xin chào, {user.ho_ten || "User"}
@@ -62,38 +81,43 @@ function TopBar({ user, onAuthOpen, onCartOpen }) {
   );
 }
 
-// ---- App chính ----
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [authOpen, setAuthOpen] = useState(false);
+// ===============================
+// 🔸 Wrapper chính của ứng dụng
+// ===============================
+function MainApp() {
   const [cartOpen, setCartOpen] = useState(false);
+  const { user, setUser } = useAuth();
 
-  // Lấy thông tin người dùng nếu đã đăng nhập
+  // Tự load user nếu có token
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
       me()
-        .then((res) => setUser(res.data.data))
+        .then((res) => setUser(res.data?.data))
         .catch(() => localStorage.removeItem("access_token"));
     }
   }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
-      <TopBar
-        user={user}
-        onAuthOpen={() => setAuthOpen(true)}
-        onCartOpen={() => setCartOpen(true)}
-      />
+      <TopBar user={user} onCartOpen={() => setCartOpen(true)} />
 
       <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/menu" element={<MenuPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/career" element={<CareerPage />} />
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/customer" element={<CustomerInfoPage user={user} />} />
+          <Route path="/login" element={<Login />} />
+
+          {/* Admin route */}
+          <Route path="/admin/*" element={<AdminIndex />} />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
@@ -103,5 +127,16 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// ===============================
+// 🔹 Gói App với AuthProvider
+// ===============================
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
