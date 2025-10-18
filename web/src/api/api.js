@@ -8,6 +8,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
 const api = axios.create({
   baseURL: BASE_URL,
   withCredentials: true, // gửi cookie refresh_token
+  timeout: 10000, // 10 second timeout
 });
 
 console.log("🌐 API base:", BASE_URL);

@@ -24,7 +24,7 @@ import AdminIndex from "./pages/admin"; // index.jsx đã tạo ở bước trư
 // ===============================
 // 🔹 Top Navigation
 // ===============================
-function TopBar({ user, onAuthOpen, onCartOpen }) {
+function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-neutral-200">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -65,9 +65,17 @@ function TopBar({ user, onAuthOpen, onCartOpen }) {
               Đăng nhập
             </Link>
           ) : (
-            <span className="text-sm bg-green-50 text-green-700 px-3 py-1 rounded-lg">
-              Xin chào, {user.ho_ten || "User"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm bg-green-50 text-green-700 px-3 py-1 rounded-lg">
+                Xin chào, {user.ho_ten || "User"}
+              </span>
+              <button
+                onClick={onLogout}
+                className="px-3 py-2 border rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
+              >
+                Đăng xuất
+              </button>
+            </div>
           )}
           <button
             onClick={onCartOpen}
@@ -86,21 +94,27 @@ function TopBar({ user, onAuthOpen, onCartOpen }) {
 // ===============================
 function MainApp() {
   const [cartOpen, setCartOpen] = useState(false);
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
 
   // Tự load user nếu có token
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
       me()
-        .then((res) => setUser(res.data?.data))
-        .catch(() => localStorage.removeItem("access_token"));
+        .then((res) => {
+          const userData = res.data?.data || res.data?.user;
+          setUser(userData);
+        })
+        .catch(() => {
+          localStorage.removeItem("access_token");
+          setUser(null);
+        });
     }
   }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
-      <TopBar user={user} onCartOpen={() => setCartOpen(true)} />
+      <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
 
       <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
         <Routes>

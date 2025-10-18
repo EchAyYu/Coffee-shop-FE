@@ -44,12 +44,17 @@ export function AuthProvider({ children }) {
   // 🔹 Đăng nhập
   // ===============================
   const login = async (ten_dn, mat_khau) => {
-    const res = await loginApi({ ten_dn, mat_khau });
-    const token = res?.data?.data?.accessToken || res?.data?.accessToken;
-    if (!token) throw new Error("Không nhận được accessToken từ server");
-    setToken(token);
-    await fetchUser();
-    return res.data.data.user;
+    try {
+      const res = await loginApi({ ten_dn, mat_khau });
+      const token = res?.data?.data?.accessToken || res?.data?.accessToken;
+      if (!token) throw new Error("Không nhận được accessToken từ server");
+      setToken(token);
+      await fetchUser();
+      return res.data.data.user;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    }
   };
 
   // ===============================
@@ -66,9 +71,14 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await logoutApi();
-    } catch {}
-    clearToken();
-    setUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      clearToken();
+      setUser(null);
+      // Redirect to home page after logout
+      window.location.href = "/";
+    }
   };
 
   return (
