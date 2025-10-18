@@ -1,75 +1,69 @@
-import { useState } from "react";
-import { login, me, setToken } from "../api/api";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+// ================================
+// ☕ Coffee Shop FE - Axios Instance (final)
+// ================================
+import axios from "axios";
 
-export default function Login() {
-  const [ten_dn, setU] = useState("");
-  const [mat_khau, setP] = useState("");
-  const [error, setError] = useState("");
-  const nav = useNavigate();
-  const { setUser } = useAuth();
+const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    setError("");
+const api = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: true, // gửi cookie refresh_token
+});
 
-    try {
-      // 🔹 Gửi thông tin đăng nhập
-      const { data } = await login({ ten_dn, mat_khau });
-      const token = data?.data?.accessToken || data?.accessToken;
+// Gắn token từ localStorage
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("access_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-      if (!token) throw new Error("Không nhận được accessToken từ server");
+// ===================================
+// 🔁 Refresh Token Auto-Handler
+// ===================================
+let refreshing = false;
+let queue = [];
 
-      // 🔹 Lưu token
-      setToken(token);
+const flushQueue = (err, token) => {
+  queue.forEach((p) => (err ? p.reject(err) : p.resolve(token)));
+  queue = [];
+};
 
-      // 🔹 Lấy thông tin user
-      const profile = await me();
-      const user = profile?.data?.data || profile?.data?.user;
-      setUser(user);
-
-      // 🔹 Điều hướng theo role
-      if (user?.role === "admin") {
-        nav("/admin/dashboard");
-      } else {
-        nav("/");
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry) {
+      if (refreshing) {
+        return new Promise((resolve, reject) => {
+          queue.push({ resolve, reject });
+        }).then((token) => {
+          original.headers.Authorization = `Bearer ${token}`;
+          return api(original);
+        });
       }
-    } catch (e) {
-      console.error("Login Error:", e);
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Đăng nhập thất bại. Vui lòng thử lại.";
-      setError(msg);
-    }
-  }
 
-  return (
-    <div className="max-w-md mx-auto p-6 mt-10 bg-white dark:bg-[#1f1f1f] rounded shadow">
-      <h1 className="text-2xl font-semibold mb-4 text-center">Đăng nhập</h1>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <input
-          className="border w-full px-3 py-2 rounded dark:bg-[#333] dark:text-white"
-          placeholder="Tên đăng nhập"
-          value={ten_dn}
-          onChange={(e) => setU(e.target.value)}
-        />
-        <input
-          className="border w-full px-3 py-2 rounded dark:bg-[#333] dark:text-white"
-          type="password"
-          placeholder="Mật khẩu"
-          value={mat_khau}
-          onChange={(e) => setP(e.target.value)}
-        />
-        {error && <div className="text-red-500 text-sm">{error}</div>}
-        <button
-          type="submit"
-          className="border px-4 py-2 rounded w-full bg-blue-500 hover:bg-blue-600 text-white font-medium"
-        >
-          Đăng nhập
-        </button>
-      </form>
-    </div>
-  );
-}
+      original._retry = true;
+      refreshing = true;
+      try {
+        const { data } = await api.post("/auth/refresh");
+        const newToken = data?.data?.accessToken || data?.accessToken;
+        if (!newToken) throw new Error("Không nhận được token mới");
+
+        localStorage.setItem("access_token", newToken);
+        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+        flushQueue(null, newToken);
+        return api(original);
+      } catch (err) {
+        flushQueue(err, null);
+        localStorage.removeItem("access_token");
+        console.error("[Refresh Token Error]", err);
+        return Promise.reject(err);
+      } finally {
+        refreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;

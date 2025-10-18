@@ -1,19 +1,17 @@
+// ===============================
+// ☕ Coffee Shop - main.jsx (Cách 1: Dùng App tổng duy nhất)
+// ===============================
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
-import AdminApp from "./pages/admin/AdminApp.jsx";
 import "./index.css";
 
-const root = document.getElementById("root");
-
-createRoot(root).render(
+// 🔹 Render toàn bộ ứng dụng
+createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/admin/*" element={<AdminApp />} />
-        <Route path="/*" element={<App />} />
-      </Routes>
+      <App />
     </BrowserRouter>
   </React.StrictMode>
 );
