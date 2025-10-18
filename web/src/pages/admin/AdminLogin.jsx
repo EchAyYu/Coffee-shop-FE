@@ -59,7 +59,7 @@ export default function AdminLogin() {
               👑
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Admin Panel
+              LO COFFEE Admin
             </h1>
             <p className="text-gray-600">Đăng nhập vào hệ thống quản trị</p>
           </div>

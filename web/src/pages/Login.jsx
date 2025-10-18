@@ -33,16 +33,16 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
       <div className="max-w-md w-full mx-4">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="h-16 w-16 rounded-full bg-red-700 grid place-items-center text-white font-bold text-2xl mx-auto mb-4">
-              H
+            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 grid place-items-center text-white font-bold text-2xl mx-auto mb-4">
+              L
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Highlands Style
+              LO COFFEE
             </h1>
             <p className="text-gray-600">Đăng nhập vào tài khoản của bạn</p>
           </div>

@@ -31,11 +31,11 @@ function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-full bg-red-700 grid place-items-center text-white font-bold">
-            H
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 grid place-items-center text-white font-bold">
+            L
           </div>
           <span className="text-xl font-semibold tracking-wide">
-            Highlands Style
+            LO COFFEE
           </span>
         </Link>
 

@@ -70,8 +70,8 @@ export default function AdminLayout() {
               👑
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
-              <p className="text-sm text-gray-500">Coffee Shop</p>
+              <h1 className="text-xl font-bold text-gray-900">LO COFFEE Admin</h1>
+              <p className="text-sm text-gray-500">Quản trị hệ thống</p>
             </div>
           </div>
         </div>

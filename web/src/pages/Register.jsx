@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ErrorDebug from "../components/ErrorDebug";
 
 export default function Register() {
   const [form, setForm] = useState({ 
@@ -15,14 +16,16 @@ export default function Register() {
     dia_chi: ""
   });
   const [error, setError] = useState("");
+  const [errorDetails, setErrorDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, login } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setErrorDetails(null);
 
     // Validation
     if (form.mat_khau !== confirmPassword) {
@@ -38,32 +41,52 @@ export default function Register() {
     setLoading(true);
 
     try {
+      // Đăng ký tài khoản
       await register(form);
-      // Redirect to home page after successful registration
-      navigate("/");
+      
+      // Sau khi đăng ký thành công, tự động đăng nhập
+      await login(form.ten_dn, form.mat_khau);
+      
+      // Redirect to customer info page to show the registered information
+      navigate("/customer");
     } catch (err) {
       console.error("Register Error:", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.";
-      setError(msg);
+      
+      // Xử lý các loại lỗi khác nhau
+      let errorMessage = "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.";
+      
+      if (err?.response?.status === 403) {
+        errorMessage = "Không có quyền truy cập. Vui lòng liên hệ quản trị viên.";
+      } else if (err?.response?.status === 409) {
+        errorMessage = "Tên đăng nhập hoặc email đã tồn tại. Vui lòng chọn thông tin khác.";
+      } else if (err?.response?.status === 400) {
+        errorMessage = "Thông tin không hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.";
+      } else if (err?.response?.status >= 500) {
+        errorMessage = "Lỗi máy chủ. Vui lòng thử lại sau.";
+      } else if (!err?.response) {
+        errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      setErrorDetails(err);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
       <div className="max-w-md w-full mx-4">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="h-16 w-16 rounded-full bg-red-700 grid place-items-center text-white font-bold text-2xl mx-auto mb-4">
-              H
+            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 grid place-items-center text-white font-bold text-2xl mx-auto mb-4">
+              L
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Highlands Style
+              LO COFFEE
             </h1>
             <p className="text-gray-600">Tạo tài khoản mới</p>
           </div>
@@ -191,9 +214,13 @@ export default function Register() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                {error}
-              </div>
+              <ErrorDebug 
+                error={errorDetails} 
+                onRetry={() => {
+                  setError("");
+                  setErrorDetails(null);
+                }}
+              />
             )}
 
             <button

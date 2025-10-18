@@ -43,6 +43,17 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config || {};
+    
+    // Log error for debugging
+    console.error("API Error:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url,
+      method: error.config?.method
+    });
+
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !original._retry) {
       if (refreshing) {
         return new Promise((resolve, reject) => queue.push({ resolve, reject }))
@@ -62,14 +73,50 @@ api.interceptors.response.use(
         flushQueue(null, newToken);
         return api(original);
       } catch (e) {
+        console.error("Token refresh failed:", e);
         flushQueue(e, null);
         clearToken();
+        // Redirect to login if refresh fails
+        if (typeof window !== 'undefined') {
+          window.location.href = "/login";
+        }
         return Promise.reject(e);
       } finally {
         refreshing = false;
       }
     }
-    return Promise.reject(error);
+
+    // Handle 403 Forbidden
+    if (error.response?.status === 403) {
+      const errorMessage = error.response?.data?.message || "Không có quyền truy cập tài nguyên này";
+      console.error("403 Forbidden:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Handle 404 Not Found
+    if (error.response?.status === 404) {
+      const errorMessage = error.response?.data?.message || "Không tìm thấy tài nguyên";
+      console.error("404 Not Found:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Handle 500 Server Error
+    if (error.response?.status >= 500) {
+      const errorMessage = error.response?.data?.message || "Lỗi máy chủ, vui lòng thử lại sau";
+      console.error("Server Error:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Handle network errors
+    if (!error.response) {
+      const errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
+      console.error("Network Error:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Handle other errors
+    const errorMessage = error.response?.data?.message || error.message || "Đã xảy ra lỗi không xác định";
+    throw new Error(errorMessage);
   }
 );
 
