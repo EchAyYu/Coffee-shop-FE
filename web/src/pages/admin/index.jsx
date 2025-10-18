@@ -1,10 +1,9 @@
-// ===============================
-// 🚀 Admin Index Routes
-// ===============================
+// src/pages/admin/index.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "../../layouts/AdminLayout";
-import AdminDashboard from "./AdminDashboard"; // ✅ SỬA TỪ "./Dashboard" → "./AdminDashboard"
+import AdminDashboard from "./AdminDashboard";
 import ProductsPage from "./ProductsPage";
+import AdminOrders from "./AdminOrders";
 
 export default function AdminIndex() {
   return (
@@ -13,7 +12,8 @@ export default function AdminIndex() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="products" element={<ProductsPage />} />
-        {/* Có thể thêm các route khác tại đây */}
+        <Route path="orders" element={<AdminOrders />} />
+        {/* wildcard để cuối cùng */}
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Route>
     </Routes>
