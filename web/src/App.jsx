@@ -17,6 +17,7 @@ import CareerPage from "./pages/CareerPage";
 import BookingPage from "./pages/BookingPage";
 import CustomerInfoPage from "./pages/CustomerInfoPage";
 import Login from "./pages/Login"; // Trang đăng nhập chung (user/admin)
+import Register from "./pages/Register"; // Trang đăng ký
 
 // ---- Admin ----
 import AdminIndex from "./pages/admin"; // index.jsx đã tạo ở bước trước
@@ -126,6 +127,7 @@ function MainApp() {
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/customer" element={<CustomerInfoPage user={user} />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Admin route */}
           <Route path="/admin/*" element={<AdminIndex />} />
