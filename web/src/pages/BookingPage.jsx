@@ -1,8 +1,9 @@
 // ================================
-// ☕ Coffee Shop FE - Booking Page
+// ☕ Coffee Shop FE - Booking Page (with reservation)
 // ================================
 import { useEffect, useState } from "react";
-import { tables } from "../api/api";
+import Swal from "sweetalert2";
+import { tables, reservations } from "../api/api";
 
 export default function BookingPage() {
   const [data, setData] = useState([]);
@@ -15,7 +16,7 @@ export default function BookingPage() {
     { value: "main", label: "Khu vực chính" },
     { value: "vip", label: "VIP" },
     { value: "outdoor", label: "Ngoài trời" },
-    { value: "rooftop", label: "Sân thượng" }
+    { value: "rooftop", label: "Sân thượng" },
   ];
 
   useEffect(() => {
@@ -25,33 +26,21 @@ export default function BookingPage() {
   const loadTables = async () => {
     try {
       setLoading(true);
-      setError(null);
-  
       const params = selectedArea !== "all" ? { khu_vuc: selectedArea } : {};
       const res = await tables.list(params);
-  
-      console.log("📦 Dữ liệu trả về từ API:", res.data);
-  
-      // 🔥 Cập nhật đoạn này:
-      const list =
-        Array.isArray(res.data)
-          ? res.data
-          : Array.isArray(res.data?.data)
-          ? res.data.data
-          : Array.isArray(res.data?.tables)
-          ? res.data.tables
-          : [];
-  
+
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
       setData(list);
     } catch (err) {
-      console.error("Lỗi lấy danh sách bàn:", err);
-      setError(err.message || "Không thể tải danh sách bàn");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-  
-  
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -83,6 +72,64 @@ export default function BookingPage() {
     }
   };
 
+  const handleBookTable = async (table) => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      Swal.fire({
+        icon: "warning",
+        title: "Vui lòng đăng nhập",
+        text: "Bạn cần đăng nhập để đặt bàn.",
+        confirmButtonText: "Đăng nhập ngay",
+      }).then(() => {
+        window.location.href = "/login";
+      });
+      return;
+    }
+
+    const { value: formValues } = await Swal.fire({
+      title: `Đặt bàn ${table.ten_ban || table.so_ban}`,
+      html: `
+        <input id="swal-name" class="swal2-input" placeholder="Họ tên">
+        <input id="swal-phone" class="swal2-input" placeholder="Số điện thoại">
+        <input id="swal-date" type="date" class="swal2-input">
+        <input id="swal-num" type="number" min="1" class="swal2-input" placeholder="Số người">
+        <textarea id="swal-note" class="swal2-textarea" placeholder="Ghi chú (tùy chọn)"></textarea>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận đặt bàn",
+      preConfirm: () => {
+        return {
+          ho_ten: document.getElementById("swal-name").value,
+          sdt: document.getElementById("swal-phone").value,
+          ngay_dat: document.getElementById("swal-date").value,
+          so_nguoi: document.getElementById("swal-num").value,
+          ghi_chu: document.getElementById("swal-note").value,
+        };
+      },
+    });
+
+    if (!formValues) return;
+
+    try {
+      await reservations.create(formValues);
+      Swal.fire({
+        icon: "success",
+        title: "🎉 Đặt bàn thành công!",
+        text: "Chúng tôi sẽ liên hệ xác nhận sớm nhất.",
+        timer: 2500,
+        showConfirmButton: false,
+      });
+      loadTables();
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi đặt bàn",
+        text: err.response?.data?.message || "Không thể đặt bàn",
+      });
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto py-12">
       <h2 className="text-3xl font-semibold text-center text-red-700 mb-4">
@@ -92,7 +139,6 @@ export default function BookingPage() {
         Chọn bàn phù hợp với nhu cầu của bạn
       </p>
 
-      {/* Filter by area */}
       <div className="flex justify-center gap-2 mb-8 flex-wrap">
         {areas.map((area) => (
           <button
@@ -109,29 +155,11 @@ export default function BookingPage() {
         ))}
       </div>
 
-      {/* Loading state */}
-      {loading && (
-        <div className="text-center py-12">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-red-700 border-r-transparent"></div>
-          <p className="mt-4 text-neutral-600">Đang tải danh sách bàn...</p>
-        </div>
-      )}
-
-      {/* Error state */}
-      {error && !loading && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-          <p className="text-red-700">❌ {error}</p>
-          <button
-            onClick={loadTables}
-            className="mt-2 px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800"
-          >
-            Thử lại
-          </button>
-        </div>
-      )}
-
-      {/* Tables grid */}
-      {!loading && !error && (
+      {loading ? (
+        <div className="text-center py-12">Đang tải danh sách bàn...</div>
+      ) : error ? (
+        <div className="text-center text-red-600 py-12">{error}</div>
+      ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {data.map((table) => (
             <div
@@ -139,7 +167,10 @@ export default function BookingPage() {
               className="border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white"
             >
               <img
-                src={table.hinh_anh || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400"}
+                src={
+                  table.hinh_anh ||
+                  "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400"
+                }
                 alt={table.ten_ban || table.so_ban}
                 className="w-full h-48 object-cover"
               />
@@ -156,11 +187,9 @@ export default function BookingPage() {
                     {getStatusText(table.trang_thai)}
                   </span>
                 </div>
-
                 <p className="text-sm text-neutral-600 mb-3">
                   {table.mo_ta || "Không có mô tả"}
                 </p>
-
                 <div className="flex items-center justify-between text-sm mb-3">
                   <span className="flex items-center gap-1">
                     👥 <strong>{table.suc_chua}</strong> người
@@ -169,35 +198,22 @@ export default function BookingPage() {
                     📍 {table.khu_vuc}
                   </span>
                 </div>
-
-                {table.gia_dat_ban > 0 && (
-                  <p className="text-sm text-amber-600 mb-3">
-                    💰 Phí đặt bàn: {table.gia_dat_ban.toLocaleString()}đ
-                  </p>
-                )}
-
                 <button
                   disabled={table.trang_thai !== "available"}
+                  onClick={() => handleBookTable(table)}
                   className={`w-full px-4 py-2 rounded-xl font-medium transition-colors ${
                     table.trang_thai === "available"
                       ? "bg-red-700 text-white hover:bg-red-800"
                       : "bg-gray-200 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  {table.trang_thai === "available" ? "Đặt bàn" : "Không khả dụng"}
+                  {table.trang_thai === "available"
+                    ? "Đặt bàn"
+                    : "Không khả dụng"}
                 </button>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && !error && data.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-neutral-500 text-lg">
-            Không có bàn nào trong khu vực này
-          </p>
         </div>
       )}
     </div>

@@ -178,13 +178,21 @@ export const updateOrderStatus = (id, status) =>
 export const deleteOrderAdmin = (id) => api.delete(`/admin/orders/${id}`);
 
 // =====================
-// 🔹 BOOKINGS, TABLES, CUSTOMERS
+// 🔹 BOOKINGS, TABLES, CUSTOMERS, RESERVATIONS
 // =====================
 export const bookings = {
   list: (params) => api.get("/bookings", { params }),
   create: (data) => api.post("/bookings", data),
   getById: (id) => api.get(`/bookings/${id}`),
   update: (id, data) => api.put(`/bookings/${id}`, data),
+};
+
+export const reservations = {
+  create: (data) => api.post("/reservations", data),
+  my: () => api.get("/reservations/my"),
+  list: () => api.get("/reservations"),
+  update: (id, data) => api.put(`/reservations/${id}`, data),
+  delete: (id) => api.delete(`/reservations/${id}`),
 };
 
 export const tables = {
