@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { getProducts, getCategories } from "../api/api";
+import { useCart } from "../components/CartContext";
 
 export default function MenuPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCat, setActiveCat] = useState("all");
+  const { addToCart } = useCart();
 
   useEffect(() => {
     getCategories()
@@ -32,7 +34,6 @@ export default function MenuPage() {
         Menu Highlands Style
       </h2>
 
-      {/* Danh mục */}
       <div className="flex flex-wrap justify-center gap-2 mb-8">
         <button
           onClick={() => setActiveCat("all")}
@@ -59,7 +60,6 @@ export default function MenuPage() {
         ))}
       </div>
 
-      {/* Danh sách sản phẩm */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
         {filtered.map((p) => (
           <div
@@ -72,12 +72,16 @@ export default function MenuPage() {
               className="w-full h-48 object-cover"
             />
             <div className="p-4 text-center">
-              <h3 className="font-semibold text-lg">
-                {p.ten_mon || p.name}
-              </h3>
+              <h3 className="font-semibold text-lg">{p.ten_mon || p.name}</h3>
               <p className="text-red-700 font-semibold mt-2">
                 {(Number(p.gia) || 0).toLocaleString("vi-VN")} ₫
               </p>
+              <button
+                onClick={() => addToCart(p)}
+                className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-full hover:bg-amber-700"
+              >
+                Thêm vào giỏ
+              </button>
             </div>
           </div>
         ))}

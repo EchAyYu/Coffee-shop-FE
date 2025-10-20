@@ -1,13 +1,17 @@
 // ===============================
-// ☕ Coffee Shop - App.jsx (Updated)
+// ☕ Coffee Shop - App.jsx (Final Updated)
 // ===============================
 import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { me } from "./api/api";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./index.css";
 
 // ---- Context ----
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { CartProvider } from "./components/CartContext";
+import CartModal from "./components/CartModal";
 
 // ---- Pages (Public) ----
 import HomePage from "./pages/HomePage";
@@ -16,16 +20,16 @@ import AboutPage from "./pages/AboutPage";
 import CareerPage from "./pages/CareerPage";
 import BookingPage from "./pages/BookingPage";
 import CustomerInfoPage from "./pages/CustomerInfoPage";
-import Login from "./pages/Login"; // Trang đăng nhập chung (user/admin)
-import Register from "./pages/Register"; // Trang đăng ký
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 // ---- Admin ----
-import AdminIndex from "./pages/admin"; // index.jsx đã tạo ở bước trước
+import AdminIndex from "./pages/admin";
 
 // ===============================
 // 🔹 Top Navigation
 // ===============================
-function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
+function TopBar({ user, onCartOpen, onLogout }) {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-neutral-200">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -34,9 +38,7 @@ function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 grid place-items-center text-white font-bold">
             L
           </div>
-          <span className="text-xl font-semibold tracking-wide">
-            LO COFFEE
-          </span>
+          <span className="text-xl font-semibold tracking-wide">LO COFFEE</span>
         </Link>
 
         {/* Menu */}
@@ -48,7 +50,6 @@ function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
           <Link to="/about" className="hover:text-red-700">Về chúng tôi</Link>
           <Link to="/customer" className="hover:text-red-700">Khách hàng</Link>
 
-          {/* Hiện link Admin nếu role=admin */}
           {user?.role === "admin" && (
             <Link to="/admin/dashboard" className="text-blue-600 hover:text-blue-800">
               Quản trị
@@ -56,7 +57,7 @@ function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
           )}
         </nav>
 
-        {/* Tài khoản & giỏ hàng */}
+        {/* User & Cart */}
         <div className="flex gap-2 items-center">
           {!user ? (
             <Link
@@ -78,6 +79,8 @@ function TopBar({ user, onAuthOpen, onCartOpen, onLogout }) {
               </button>
             </div>
           )}
+
+          {/* Giỏ hàng */}
           <button
             onClick={onCartOpen}
             className="px-3 py-2 border rounded-xl hover:bg-neutral-50"
@@ -97,7 +100,6 @@ function MainApp() {
   const [cartOpen, setCartOpen] = useState(false);
   const { user, setUser, logout } = useAuth();
 
-  // Tự load user nếu có token
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
@@ -114,35 +116,46 @@ function MainApp() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
-      <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
+    <CartProvider>
+      <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
+        <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
+        <CartModal open={cartOpen} onClose={() => setCartOpen(false)} user={user} />
+        
+        {/* Toast Container for notifications */}
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
 
-      <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/menu" element={<MenuPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/career" element={<CareerPage />} />
-          <Route path="/booking" element={<BookingPage />} />
-          <Route path="/customer" element={<CustomerInfoPage user={user} />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+        <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/career" element={<CareerPage />} />
+            <Route path="/booking" element={<BookingPage />} />
+            <Route path="/customer" element={<CustomerInfoPage user={user} />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/admin/*" element={<AdminIndex />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
 
-          {/* Admin route */}
-          <Route path="/admin/*" element={<AdminIndex />} />
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-
-      <footer className="border-t mt-12">
-        <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
-          © {new Date().getFullYear()} Highlands Style — Graduation Project.
-        </div>
-      </footer>
-    </div>
+        <footer className="border-t mt-12">
+          <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
+            © {new Date().getFullYear()} LO COFFEE — Graduation Project.
+          </div>
+        </footer>
+      </div>
+    </CartProvider>
   );
 }
 

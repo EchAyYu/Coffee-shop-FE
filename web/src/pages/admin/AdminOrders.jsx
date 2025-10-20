@@ -1,6 +1,6 @@
 // src/pages/admin/AdminOrders.jsx - Modern & Bright Design
 import { useEffect, useState } from "react";
-import { getOrdersAdmin } from "../../api/api";
+import { getOrdersAdmin, updateOrderStatus } from "../../api/api";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
@@ -185,12 +185,38 @@ export default function AdminOrders() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+                        <button
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                          onClick={() => alert(`Chi tiết đơn #${order.id_don}`)}
+                        >
                           Xem chi tiết
                         </button>
-                        <button className="text-green-600 hover:text-green-800 text-sm font-medium transition-colors">
-                          Cập nhật
-                        </button>
+                        <select
+                          value={order.trang_thai || "PENDING"}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            try {
+                              await updateOrderStatus(order.id_don, newStatus);
+                              setOrders((prev) =>
+                                prev.map((o) =>
+                                  o.id_don === order.id_don ? { ...o, trang_thai: newStatus } : o
+                                )
+                              );
+                              alert(`✅ Đã cập nhật trạng thái: ${newStatus}`);
+                            } catch (err) {
+                              console.error("Update failed:", err);
+                              alert("❌ Lỗi cập nhật trạng thái");
+                            }
+                          }}
+                          className="border rounded-lg px-2 py-1 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100"
+                        >
+                          <option value="PENDING">Đang xử lý</option>
+                          <option value="CONFIRMED">Đã xác nhận</option>
+                          <option value="PAID">Đã thanh toán</option>
+                          <option value="SHIPPED">Đang giao</option>
+                          <option value="DONE">Hoàn thành</option>
+                          <option value="CANCELLED">Đã hủy</option>
+                        </select>
                       </div>
                     </td>
                   </tr>
