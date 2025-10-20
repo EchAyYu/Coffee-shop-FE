@@ -1,10 +1,14 @@
 // ================================
-// ☕ Coffee Shop FE - Cart Modal
+// ☕ Coffee Shop FE - Cart Modal (v2 đẹp hơn)
 // ================================
 import { useCart } from "./CartContext";
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 export default function CartModal({ open, onClose, user }) {
   const { cart, removeFromCart, updateQty, checkout } = useCart();
+  const navigate = useNavigate();
 
   if (!open) return null;
 
@@ -14,10 +18,43 @@ export default function CartModal({ open, onClose, user }) {
   );
 
   const handleOrder = async () => {
+    // ✅ Nếu chưa đăng nhập → popup thông báo đẹp
+    if (!user) {
+      Swal.fire({
+        icon: "info",
+        title: "Vui lòng đăng nhập",
+        text: "Bạn cần đăng nhập để đặt hàng nhé ☕",
+        confirmButtonText: "Đăng nhập ngay",
+        confirmButtonColor: "#b91c1c",
+        showCancelButton: true,
+        cancelButtonText: "Để sau",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          onClose();
+          navigate("/login");
+        }
+      });
+      return;
+    }
+
     try {
       await checkout(user);
+      Swal.fire({
+        icon: "success",
+        title: "Đặt hàng thành công!",
+        text: "Cảm ơn bạn đã đặt hàng tại LO Coffee ☕",
+        confirmButtonColor: "#b91c1c",
+      });
       onClose();
-    } catch {}
+    } catch (err) {
+      console.error("Checkout error:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Đặt hàng thất bại!",
+        text: "Vui lòng thử lại sau.",
+        confirmButtonColor: "#b91c1c",
+      });
+    }
   };
 
   return (
