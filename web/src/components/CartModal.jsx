@@ -23,7 +23,15 @@ export default function CartModal({ open, onClose, user }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-xl relative">
-        <h2 className="text-xl font-semibold mb-4">🛒 Giỏ hàng</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">🛒 Giỏ hàng</h2>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 p-2"
+          >
+            ✕
+          </button>
+        </div>
 
         {cart.length === 0 ? (
           <p className="text-neutral-500 text-center">Chưa có sản phẩm nào.</p>
