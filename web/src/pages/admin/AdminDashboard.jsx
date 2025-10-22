@@ -267,12 +267,12 @@ export default function AdminDashboard() {
         ) : (
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {data.reservations.slice(0, 5).map((reservation) => (
-              <div key={reservation.id_dat_ban} className="p-4 bg-gray-50 rounded-xl">
+              <div key={reservation.id_datban} className="p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{reservation.ho_ten || "Khách hàng"}</p>
                     <p className="text-sm text-gray-600">{reservation.sdt || "Không có sdt"}</p>
-                    <p className="text-xs text-gray-500">ID: {reservation.id_dat_ban}</p>
+                    <p className="text-xs text-gray-500">ID: {reservation.id_datban}</p>
                   </div>
                 </div>
               </div>

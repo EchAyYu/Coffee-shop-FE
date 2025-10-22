@@ -36,7 +36,7 @@ export default function AdminReservations() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await reservations.update(id, { status: status });
+          await reservations.update(id, { trang_thai: status });
           Swal.fire("Thành công!", "Đã cập nhật trạng thái.", "success");
           loadReservations(); // Tải lại danh sách
         } catch (error) {

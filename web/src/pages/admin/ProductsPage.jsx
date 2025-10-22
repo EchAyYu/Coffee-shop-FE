@@ -14,7 +14,6 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -36,24 +35,17 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const id = editing?.id ?? editing?.id_mon;
-      
-      const formData = new FormData();
-      formData.append("ten_mon", form.ten_mon);
-      formData.append("gia", Number(form.gia));
-      formData.append("id_dm", Number(form.id_dm));
-      formData.append("mo_ta", form.mo_ta);
-      formData.append("trang_thai", form.trang_thai);
-      
-      if (imageFile) {
-        formData.append("anh", imageFile);
-      } else if (editing && form.anh) {
-        formData.append("anh", form.anh);
-      }
+      const submissionData = {
+        ...form,
+        gia: Number(form.gia),
+        id_dm: Number(form.id_dm),
+        trang_thai: Boolean(form.trang_thai),
+      };
 
       if (editing) {
-        await updateProduct(id, formData);
+        await updateProduct(id, submissionData);
       } else {
-        await createProduct(formData);
+        await createProduct(submissionData);
       }
       handleCancel(); // Reset form & state
       await load();
@@ -88,7 +80,6 @@ export default function ProductsPage() {
       mo_ta: product.mo_ta ?? "",
       trang_thai: product.trang_thai ?? true,
     });
-    setImageFile(null); 
     setShowForm(true);
   };
 
@@ -102,7 +93,6 @@ export default function ProductsPage() {
       mo_ta: "",
       trang_thai: true,
     });
-    setImageFile(null); 
     setShowForm(false);
   };
 
@@ -184,24 +174,16 @@ export default function ProductsPage() {
               />
             </div>
 
-            <div className="md:col-span-2">
+            <div className="md:col-span-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Hình ảnh
+                URL Hình ảnh
               </label>
               <input
-                type="file"
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                onChange={e => setImageFile(e.target.files[0])}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                placeholder="https://example.com/image.jpg"
+                value={form.anh}
+                onChange={e=>setForm({...form, anh:e.target.value})}
               />
-            </div>
-            
-            <div className="md:col-span-2">
-              {imageFile && (
-                <img src={URL.createObjectURL(imageFile)} alt="Preview" className="h-24 w-24 rounded-lg object-cover" />
-              )}
-              {!imageFile && form.anh && (
-                <img src={form.anh} alt="Current" className="h-24 w-24 rounded-lg object-cover" />
-              )}
             </div>
 
             <div className="md:col-span-4">
