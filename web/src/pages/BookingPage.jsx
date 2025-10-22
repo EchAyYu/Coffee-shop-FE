@@ -111,8 +111,13 @@ export default function BookingPage() {
 
     if (!formValues) return;
 
+    const reservationData = {
+      ...formValues,
+      id_ban: table.id_ban,
+    };
+
     try {
-      await reservations.create(formValues);
+      await reservations.create(reservationData);
       Swal.fire({
         icon: "success",
         title: "🎉 Đặt bàn thành công!",
