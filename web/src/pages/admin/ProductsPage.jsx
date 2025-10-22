@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
-import { getProducts } from "../../api/product";        // dùng module bạn đã tách
-import { createProduct, updateProduct, deleteProduct } from "../../api/product";
+import { getProducts, createProduct, updateProduct, deleteProduct } from "../../api/api";
 
 export default function ProductsPage() {
   const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ name:"", price:"", categoryId:"", imageUrl:"" });
+  const [form, setForm] = useState({ 
+    ten_mon:"", 
+    gia:"", 
+    id_dm:"", 
+    anh:"",
+    mo_ta: "",
+    trang_thai: true,
+  });
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -29,14 +36,26 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const id = editing?.id ?? editing?.id_mon;
-      if (editing) {
-        await updateProduct(id, form);
-      } else {
-        await createProduct(form);
+      
+      const formData = new FormData();
+      formData.append("ten_mon", form.ten_mon);
+      formData.append("gia", Number(form.gia));
+      formData.append("id_dm", Number(form.id_dm));
+      formData.append("mo_ta", form.mo_ta);
+      formData.append("trang_thai", form.trang_thai);
+      
+      if (imageFile) {
+        formData.append("anh", imageFile);
+      } else if (editing && form.anh) {
+        formData.append("anh", form.anh);
       }
-      setForm({ name:"", price:"", categoryId:"", imageUrl:"" });
-      setEditing(null);
-      setShowForm(false);
+
+      if (editing) {
+        await updateProduct(id, formData);
+      } else {
+        await createProduct(formData);
+      }
+      handleCancel(); // Reset form & state
       await load();
     } catch (error) {
       console.error("Error saving product:", error);
@@ -62,17 +81,28 @@ export default function ProductsPage() {
   const handleEdit = (product) => {
     setEditing(product);
     setForm({
-      name: product.name ?? product.ten_mon ?? "",
-      price: product.price ?? product.gia ?? "",
-      categoryId: product.categoryId ?? product.id_dm ?? "",
-      imageUrl: product.imageUrl ?? product.anh ?? "",
+      ten_mon: product.ten_mon ?? "",
+      gia: product.gia ?? "",
+      id_dm: product.id_dm ?? "",
+      anh: product.anh ?? "",
+      mo_ta: product.mo_ta ?? "",
+      trang_thai: product.trang_thai ?? true,
     });
+    setImageFile(null); 
     setShowForm(true);
   };
 
   const handleCancel = () => {
     setEditing(null);
-    setForm({ name:"", price:"", categoryId:"", imageUrl:"" });
+    setForm({ 
+      ten_mon:"", 
+      gia:"", 
+      id_dm:"", 
+      anh:"",
+      mo_ta: "",
+      trang_thai: true,
+    });
+    setImageFile(null); 
     setShowForm(false);
   };
 
@@ -120,8 +150,8 @@ export default function ProductsPage() {
               <input 
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
                 placeholder="Nhập tên sản phẩm"
-                value={form.name} 
-                onChange={e=>setForm({...form, name:e.target.value})}
+                value={form.ten_mon} 
+                onChange={e=>setForm({...form, ten_mon:e.target.value})}
                 required
               />
             </div>
@@ -135,8 +165,8 @@ export default function ProductsPage() {
                 placeholder="0" 
                 type="number" 
                 min="0"
-                value={form.price} 
-                onChange={e=>setForm({...form, price:e.target.value})}
+                value={form.gia} 
+                onChange={e=>setForm({...form, gia:e.target.value})}
                 required
               />
             </div>
@@ -148,24 +178,63 @@ export default function ProductsPage() {
               <input 
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
                 placeholder="1"
-                value={form.categoryId} 
-                onChange={e=>setForm({...form, categoryId:e.target.value})}
+                value={form.id_dm} 
+                onChange={e=>setForm({...form, id_dm:e.target.value})}
                 required
               />
             </div>
-            
-            <div className="md:col-span-3">
+
+            <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                URL Hình ảnh
+                Hình ảnh
               </label>
-              <input 
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
-                placeholder="https://example.com/image.jpg"
-                value={form.imageUrl} 
-                onChange={e=>setForm({...form, imageUrl:e.target.value})}
+              <input
+                type="file"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                onChange={e => setImageFile(e.target.files[0])}
               />
             </div>
             
+            <div className="md:col-span-2">
+              {imageFile && (
+                <img src={URL.createObjectURL(imageFile)} alt="Preview" className="h-24 w-24 rounded-lg object-cover" />
+              )}
+              {!imageFile && form.anh && (
+                <img src={form.anh} alt="Current" className="h-24 w-24 rounded-lg object-cover" />
+              )}
+            </div>
+
+            <div className="md:col-span-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Mô tả
+              </label>
+              <textarea
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                placeholder="Mô tả ngắn về sản phẩm..."
+                value={form.mo_ta}
+                onChange={e => setForm({ ...form, mo_ta: e.target.value })}
+                rows="3"
+              ></textarea>
+            </div>
+
+            <div className="md:col-span-4 flex items-center gap-4">
+               <label className="block text-sm font-semibold text-gray-700">
+                Trạng thái
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.trang_thai}
+                  onChange={e => setForm({ ...form, trang_thai: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <span className="ms-3 text-sm font-medium text-gray-900">
+                  {form.trang_thai ? "Hiển thị" : "Ẩn"}
+                </span>
+              </label>
+            </div>
+
             <div className="md:col-span-4 flex gap-3">
               <button 
                 type="submit"
@@ -234,10 +303,10 @@ export default function ProductsPage() {
                 {items.map(product => (
                   <tr key={product.id ?? product.id_mon} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-6 py-4">
-                      {(product.imageUrl ?? product.anh) ? (
+                      {(product.anh) ? (
                         <img 
-                          src={product.imageUrl ?? product.anh} 
-                          alt={product.name ?? product.ten_mon}
+                          src={product.anh} 
+                          alt={product.ten_mon}
                           className="h-16 w-16 rounded-lg object-cover border border-gray-200" 
                         />
                       ) : (
@@ -248,18 +317,18 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-semibold text-gray-900">{product.name ?? product.ten_mon}</p>
+                        <p className="font-semibold text-gray-900">{product.ten_mon}</p>
                         <p className="text-sm text-gray-600">Sản phẩm</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-semibold text-green-600">
-                        {(Number(product.price ?? product.gia) || 0).toLocaleString('vi-VN')} ₫
+                        {(Number(product.gia) || 0).toLocaleString('vi-VN')} ₫
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        ID: {product.categoryId ?? product.id_dm ?? "—"}
+                        ID: {product.id_dm ?? "—"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -301,13 +370,13 @@ export default function ProductsPage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {items.reduce((sum, item) => sum + (Number(item.price ?? item.gia) || 0), 0).toLocaleString('vi-VN')} ₫
+                {items.reduce((sum, item) => sum + (Number(item.gia) || 0), 0).toLocaleString('vi-VN')} ₫
               </div>
               <div className="text-sm text-gray-600">Tổng giá trị</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {Math.round(items.reduce((sum, item) => sum + (Number(item.price ?? item.gia) || 0), 0) / items.length).toLocaleString('vi-VN')} ₫
+                {Math.round(items.reduce((sum, item) => sum + (Number(item.gia) || 0), 0) / items.length).toLocaleString('vi-VN')} ₫
               </div>
               <div className="text-sm text-gray-600">Giá trung bình</div>
             </div>

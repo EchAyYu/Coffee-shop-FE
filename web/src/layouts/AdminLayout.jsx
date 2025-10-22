@@ -32,6 +32,7 @@ export default function AdminLayout() {
     { path: "/admin/dashboard", label: "Dashboard", icon: "📊", color: "blue" },
     { path: "/admin/products", label: "Sản phẩm", icon: "🛒", color: "green" },
     { path: "/admin/orders", label: "Đơn hàng", icon: "📦", color: "orange" },
+    { path: "/admin/reservations", label: "Đặt bàn", icon: "📅", color: "pink" },
     { path: "/admin/customers", label: "Khách hàng", icon: "👥", color: "purple" },
   ];
 
@@ -41,6 +42,7 @@ export default function AdminLayout() {
       green: "hover:bg-green-50 hover:text-green-700 hover:border-green-200",
       orange: "hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200",
       purple: "hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200",
+      pink: "hover:bg-pink-50 hover:text-pink-700 hover:border-pink-200",
     };
     return colors[color] || colors.blue;
   };

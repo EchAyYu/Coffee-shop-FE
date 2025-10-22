@@ -3,28 +3,63 @@
 // ================================
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getProducts } from '../api/api';
+import { getProducts, getHomepageContent, updateHomepageContent } from '../api/api';
 import ProductCard from '../components/ProductCard';
+import Editable from '../components/Editable';
+import Swal from 'sweetalert2';
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [content, setContent] = useState({});
 
   useEffect(() => {
-    loadProducts();
+    loadHomepage();
   }, []);
 
-  const loadProducts = async () => {
+  const loadHomepage = async () => {
     try {
-      const response = await getProducts();
-      const productList = response.data?.data || response.data || [];
-      setProducts(productList.slice(0, 8)); // Hiển thị 8 sản phẩm đầu tiên
+      setLoading(true);
+      // Parallel fetching
+      const [productsRes, contentRes] = await Promise.all([
+        getProducts(),
+        getHomepageContent().catch(() => ({ data: {} })), // Default content if fetch fails
+      ]);
+
+      const productList = productsRes.data?.data || productsRes.data || [];
+      setProducts(productList.slice(0, 8));
+
+      setContent(contentRes.data?.data || contentRes.data || {
+        hero: { title: "Cà phê đậm vị", subtitle: "Khám phá hương vị cà phê Việt Nam đích thực..." },
+        promo1: { title: "Giảm 30%", text: "Tất cả đồ uống từ 14:00 - 17:00" },
+      });
+
     } catch (error) {
-      console.error("Error loading products:", error);
+      console.error("Error loading homepage data:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSaveContent = async (section, field, newContent) => {
+    const updatedContent = {
+      ...content,
+      [section]: {
+        ...content[section],
+        [field]: newContent,
+      },
+    };
+
+    try {
+      await updateHomepageContent(updatedContent);
+      setContent(updatedContent);
+      Swal.fire("Saved!", "Your changes have been saved.", "success");
+    } catch (err) {
+      console.error("Failed to save content", err);
+      Swal.fire("Error!", "Could not save your changes.", "error");
+    }
+  };
+
 
   return (
     <div className="min-h-screen">
@@ -54,15 +89,18 @@ export default function HomePage() {
             
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
               Thưởng thức
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-300">
-                Cà phê đậm vị
-              </span>
+              <Editable as="span" onSave={handleSaveContent} section="hero" field="title">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-300">
+                  {content.hero?.title || "Cà phê đậm vị"}
+                </span>
+              </Editable>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Khám phá hương vị cà phê Việt Nam đích thực tại LO COFFEE - 
-              nơi mỗi ly cà phê kể một câu chuyện riêng
-            </p>
+            <Editable as="p" onSave={handleSaveContent} section="hero" field="subtitle">
+              <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
+                {content.hero?.subtitle || "Khám phá hương vị cà phê Việt Nam đích thực..."}
+              </p>
+            </Editable>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 

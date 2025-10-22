@@ -143,15 +143,6 @@ export const logout = async () => {
 };
 
 // =====================
-// 🔹 PRODUCTS
-// =====================
-export const getProducts = (params) => api.get("/products", { params });
-export const getProductById = (id) => api.get(`/products/${id}`);
-export const createProduct = (data) => api.post("/products", data);
-export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
-export const deleteProduct = (id) => api.delete(`/products/${id}`);
-
-// =====================
 // 🔹 CATEGORIES
 // =====================
 export const getCategories = () => api.get("/categories");
@@ -178,6 +169,15 @@ export const updateOrderStatus = (id, status) =>
 export const deleteOrderAdmin = (id) => api.delete(`/admin/orders/${id}`);
 
 // =====================
+// 🔹 PRODUCTS (from product.js)
+// =====================
+export const getProducts = (params) => api.get("/products", { params });
+export const getProductById = (id) => api.get(`/products/${id}`);
+export const createProduct = (data) => api.post("/products", data);
+export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
+export const deleteProduct = (id) => api.delete(`/products/${id}`);
+
+// =====================
 // 🔹 BOOKINGS, TABLES, CUSTOMERS, RESERVATIONS
 // =====================
 export const bookings = {
@@ -200,9 +200,16 @@ export const tables = {
 };
 
 export const customers = {
+  getAll: () => api.get("/admin/customers"), // Thêm hàm lấy tất cả khách hàng cho admin
   getMyInfo: () => api.get("/customers/me"),
   update: (data) => api.put("/customers/me", data),
 };
 
+// =====================
+// 🔹 CONTENT MANAGEMENT
+// =====================
+export const getHomepageContent = () => api.get("/content/homepage");
+export const updateHomepageContent = (data) => api.put("/content/homepage", data);
+
+
 export default api;
-export { api };

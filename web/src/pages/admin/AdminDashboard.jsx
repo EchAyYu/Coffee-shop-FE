@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
-import { getProducts, getOrders, customers } from "../../api/api";
+import { getProducts, getOrders, customers, reservations } from "../../api/api";
 
 export default function AdminDashboard() {
   const [data, setData] = useState({
     customers: [],
     orders: [],
     products: [],
+    reservations: [],
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [productsRes, ordersRes, customersRes] = await Promise.all([
+        const [productsRes, ordersRes, customersRes, reservationsRes] = await Promise.all([
           getProducts(),
           getOrders().catch(() => ({ data: [] })), // nếu /orders chưa có
-          customers.getMyInfo().catch(() => ({ data: [] })), // nếu /customers/all chưa có
+          customers.getAll().catch(() => ({ data: [] })), // nếu /customers/all chưa có
+          reservations.list().catch(() => ({ data: [] })),
         ]);
 
         setData({
@@ -24,6 +26,7 @@ export default function AdminDashboard() {
           customers: Array.isArray(customersRes.data)
             ? customersRes.data
             : [customersRes.data],
+          reservations: reservationsRes.data?.data || reservationsRes.data || [],
         });
       } catch (err) {
         console.error("⚠️ Lỗi tải dữ liệu admin:", err);
@@ -72,6 +75,15 @@ export default function AdminDashboard() {
       bgColor: "bg-purple-50",
       textColor: "text-purple-700",
       borderColor: "border-purple-200"
+    },
+    {
+      title: "Số bàn đặt",
+      value: data.reservations.length,
+      icon: "📅",
+      color: "pink",
+      bgColor: "bg-pink-50",
+      textColor: "text-pink-700",
+      borderColor: "border-pink-200"
     },
     {
       title: "Doanh thu",
@@ -221,7 +233,7 @@ export default function AdminDashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.customers.map((customer) => (
-              <div key={customer.id_kh || customer.id_tk} className="p-4 bg-gray-50 rounded-xl">
+              <div key={customer.id_kh || customer.id_tk || customer.email} className="p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 grid place-items-center text-white font-semibold">
                     {(customer.ho_ten || customer.ten_dn || "A").charAt(0).toUpperCase()}
@@ -230,6 +242,37 @@ export default function AdminDashboard() {
                     <p className="font-medium text-gray-900">{customer.ho_ten || customer.ten_dn || "Khách hàng"}</p>
                     <p className="text-sm text-gray-600">{customer.email || "Không có email"}</p>
                     <p className="text-xs text-gray-500">ID: {customer.id_kh || customer.id_tk}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* reservations */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-10 w-10 rounded-xl bg-pink-100 grid place-items-center">
+            <span className="text-xl">📅</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">Các bàn đã đặt</h2>
+        </div>
+        
+        {data.reservations.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">📅</div>
+            <p>Chưa có bàn nào được đặt</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-64 overflow-y-auto">
+            {data.reservations.slice(0, 5).map((reservation) => (
+              <div key={reservation.id_dat_ban} className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{reservation.ho_ten || "Khách hàng"}</p>
+                    <p className="text-sm text-gray-600">{reservation.sdt || "Không có sdt"}</p>
+                    <p className="text-xs text-gray-500">ID: {reservation.id_dat_ban}</p>
                   </div>
                 </div>
               </div>
