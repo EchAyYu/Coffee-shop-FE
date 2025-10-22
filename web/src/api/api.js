@@ -205,11 +205,4 @@ export const customers = {
   update: (data) => api.put("/customers/me", data),
 };
 
-// =====================
-// 🔹 HOMEPAGE CONTENT 
-// =====================
-export const getHomepageContent = () => api.get("/home-content");
-export const updateHomepageContent = (id, data) => api.put(`/home-content/${id}`, data);
-
-
 export default api;

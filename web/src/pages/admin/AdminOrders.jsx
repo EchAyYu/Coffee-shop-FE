@@ -1,6 +1,7 @@
 // src/pages/admin/AdminOrders.jsx - Modern & Bright Design
 import { useEffect, useState } from "react";
 import { getOrdersAdmin, updateOrderStatus } from "../../api/api";
+import Swal from "sweetalert2";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
@@ -192,7 +193,8 @@ export default function AdminOrders() {
                           Xem chi tiết
                         </button>
                         <select
-                          value={order.trang_thai || "PENDING"}
+                          key={order.id_don}
+                          value={order.trang_thai?.toLowerCase() || "pending"}
                           onChange={async (e) => {
                             const newStatus = e.target.value;
                             try {
@@ -202,20 +204,30 @@ export default function AdminOrders() {
                                   o.id_don === order.id_don ? { ...o, trang_thai: newStatus } : o
                                 )
                               );
-                              alert(`✅ Đã cập nhật trạng thái: ${newStatus}`);
+                              Swal.fire({
+                                icon: 'success',
+                                title: 'Thành công!',
+                                text: `Đã cập nhật trạng thái thành ${newStatus}.`,
+                                timer: 1500,
+                                showConfirmButton: false,
+                              });
                             } catch (err) {
                               console.error("Update failed:", err);
-                              alert("❌ Lỗi cập nhật trạng thái");
+                              Swal.fire({
+                                icon: 'error',
+                                title: 'Lỗi!',
+                                text: 'Không thể cập nhật trạng thái.',
+                              });
                             }
                           }}
                           className="border rounded-lg px-2 py-1 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100"
                         >
-                          <option value="PENDING">Đang xử lý</option>
-                          <option value="CONFIRMED">Đã xác nhận</option>
-                          <option value="PAID">Đã thanh toán</option>
-                          <option value="SHIPPED">Đang giao</option>
-                          <option value="DONE">Hoàn thành</option>
-                          <option value="CANCELLED">Đã hủy</option>
+                          <option value="pending">Đang xử lý</option>
+                          <option value="confirmed">Đã xác nhận</option>
+                          <option value="paid">Đã thanh toán</option>
+                          <option value="shipped">Đang giao</option>
+                          <option value="completed">Hoàn thành</option>
+                          <option value="cancelled">Đã hủy</option>
                         </select>
                       </div>
                     </td>

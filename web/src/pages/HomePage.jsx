@@ -3,81 +3,26 @@
 // ================================
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getProducts, getHomepageContent, updateHomepageContent } from '../api/api';
+import { getProducts } from '../api/api';
 import ProductCard from '../components/ProductCard';
-import Editable from '../components/Editable';
-import Swal from 'sweetalert2';
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [content, setContent] = useState({
-    hero: { id: null, title: '', subtitle: '' },
-  });
 
   useEffect(() => {
-    loadHomepage();
+    loadProducts();
   }, []);
 
-  const loadHomepage = async () => {
+  const loadProducts = async () => {
     try {
-      setLoading(true);
-      // Lấy song song danh sách sản phẩm và nội dung trang chủ
-      const [productsRes, contentRes] = await Promise.all([
-        getProducts(),
-        getHomepageContent().catch(() => ({ data: [] })), // fallback nếu chưa có nội dung
-      ]);
-
-      const productList = productsRes.data?.data || productsRes.data || [];
-      setProducts(productList.slice(0, 8));
-
-      // BE trả về mảng các nội dung
-      const contents = contentRes.data || [];
-      const heroSection = contents.find((item) => item.order === 0) || {
-        id: null,
-        title: 'Cà phê đậm vị',
-        description: 'Khám phá hương vị cà phê Việt Nam đích thực...',
-      };
-
-      setContent({
-        hero: {
-          id: heroSection.id,
-          title: heroSection.title,
-          subtitle: heroSection.description,
-        },
-      });
+      const response = await getProducts();
+      const productList = response.data?.data || response.data || [];
+      setProducts(productList.slice(0, 8)); // Hiển thị 8 sản phẩm đầu tiên
     } catch (error) {
-      console.error('Error loading homepage data:', error);
+      console.error("Error loading products:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSaveContent = async (section, field, newContent) => {
-    try {
-      const sectionData = content[section];
-      if (!sectionData?.id) {
-        Swal.fire('⚠️', 'Không tìm thấy nội dung để cập nhật', 'warning');
-        return;
-      }
-
-      const updateData =
-        field === 'title'
-          ? { title: newContent }
-          : { description: newContent };
-
-      await updateHomepageContent(sectionData.id, updateData);
-
-      const updatedContent = {
-        ...content,
-        [section]: { ...sectionData, ...updateData },
-      };
-
-      setContent(updatedContent);
-      Swal.fire('✅ Đã lưu!', 'Nội dung đã được cập nhật.', 'success');
-    } catch (err) {
-      console.error('Failed to save content', err);
-      Swal.fire('❌ Lỗi!', 'Không thể lưu thay đổi.', 'error');
     }
   };
 
@@ -109,30 +54,17 @@ export default function HomePage() {
 
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
               Thưởng thức{' '}
-              <Editable
-                as="span"
-                onSave={handleSaveContent}
-                section="hero"
-                field="title"
-              >
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-300">
-                  {content.hero?.title || 'Cà phê đậm vị'}
-                </span>
-              </Editable>
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-300">
+                {/* The Editable component was removed, so this will now be a static text */}
+                Cà phê đậm vị
+              </span>
             </h1>
 
             {/* ⚠️ Sửa lỗi lồng <p> */}
-            <Editable
-              as="div"
-              onSave={handleSaveContent}
-              section="hero"
-              field="subtitle"
-            >
-              <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
-                {content.hero?.subtitle ||
-                  'Khám phá hương vị cà phê Việt Nam đích thực...'}
-              </p>
-            </Editable>
+            <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
+              {/* The Editable component was removed, so this will now be a static text */}
+              Khám phá hương vị cà phê Việt Nam đích thực...
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
