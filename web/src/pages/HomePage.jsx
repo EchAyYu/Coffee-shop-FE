@@ -1,5 +1,5 @@
 // ================================
-// ☕ LO COFFEE - Modern Homepage
+// ☕ LO COFFEE - Editable Homepage (Updated)
 // ================================
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -11,7 +11,9 @@ import Swal from 'sweetalert2';
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [content, setContent] = useState({});
+  const [content, setContent] = useState({
+    hero: { id: null, title: '', subtitle: '' },
+  });
 
   useEffect(() => {
     loadHomepage();
@@ -20,54 +22,72 @@ export default function HomePage() {
   const loadHomepage = async () => {
     try {
       setLoading(true);
-      // Parallel fetching
+      // Lấy song song danh sách sản phẩm và nội dung trang chủ
       const [productsRes, contentRes] = await Promise.all([
         getProducts(),
-        getHomepageContent().catch(() => ({ data: {} })), // Default content if fetch fails
+        getHomepageContent().catch(() => ({ data: [] })), // fallback nếu chưa có nội dung
       ]);
 
       const productList = productsRes.data?.data || productsRes.data || [];
       setProducts(productList.slice(0, 8));
 
-      setContent(contentRes.data?.data || contentRes.data || {
-        hero: { title: "Cà phê đậm vị", subtitle: "Khám phá hương vị cà phê Việt Nam đích thực..." },
-        promo1: { title: "Giảm 30%", text: "Tất cả đồ uống từ 14:00 - 17:00" },
-      });
+      // BE trả về mảng các nội dung
+      const contents = contentRes.data || [];
+      const heroSection = contents.find((item) => item.order === 0) || {
+        id: null,
+        title: 'Cà phê đậm vị',
+        description: 'Khám phá hương vị cà phê Việt Nam đích thực...',
+      };
 
+      setContent({
+        hero: {
+          id: heroSection.id,
+          title: heroSection.title,
+          subtitle: heroSection.description,
+        },
+      });
     } catch (error) {
-      console.error("Error loading homepage data:", error);
+      console.error('Error loading homepage data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSaveContent = async (section, field, newContent) => {
-    const updatedContent = {
-      ...content,
-      [section]: {
-        ...content[section],
-        [field]: newContent,
-      },
-    };
-
     try {
-      await updateHomepageContent(updatedContent);
+      const sectionData = content[section];
+      if (!sectionData?.id) {
+        Swal.fire('⚠️', 'Không tìm thấy nội dung để cập nhật', 'warning');
+        return;
+      }
+
+      const updateData =
+        field === 'title'
+          ? { title: newContent }
+          : { description: newContent };
+
+      await updateHomepageContent(sectionData.id, updateData);
+
+      const updatedContent = {
+        ...content,
+        [section]: { ...sectionData, ...updateData },
+      };
+
       setContent(updatedContent);
-      Swal.fire("Saved!", "Your changes have been saved.", "success");
+      Swal.fire('✅ Đã lưu!', 'Nội dung đã được cập nhật.', 'success');
     } catch (err) {
-      console.error("Failed to save content", err);
-      Swal.fire("Error!", "Could not save your changes.", "error");
+      console.error('Failed to save content', err);
+      Swal.fire('❌ Lỗi!', 'Không thể lưu thay đổi.', 'error');
     }
   };
 
-
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* ================= HERO SECTION ================= */}
       <section className="relative h-[70vh] min-h-[500px] overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-900 via-orange-800 to-red-900"></div>
         <div className="absolute inset-0 bg-black/30"></div>
-        
+
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full"></div>
@@ -86,31 +106,43 @@ export default function HomePage() {
                 <span className="font-semibold">LO COFFEE</span>
               </div>
             </div>
-            
+
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              Thưởng thức
-              <Editable as="span" onSave={handleSaveContent} section="hero" field="title">
+              Thưởng thức{' '}
+              <Editable
+                as="span"
+                onSave={handleSaveContent}
+                section="hero"
+                field="title"
+              >
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-300">
-                  {content.hero?.title || "Cà phê đậm vị"}
+                  {content.hero?.title || 'Cà phê đậm vị'}
                 </span>
               </Editable>
             </h1>
-            
-            <Editable as="p" onSave={handleSaveContent} section="hero" field="subtitle">
+
+            {/* ⚠️ Sửa lỗi lồng <p> */}
+            <Editable
+              as="div"
+              onSave={handleSaveContent}
+              section="hero"
+              field="subtitle"
+            >
               <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
-                {content.hero?.subtitle || "Khám phá hương vị cà phê Việt Nam đích thực..."}
+                {content.hero?.subtitle ||
+                  'Khám phá hương vị cà phê Việt Nam đích thực...'}
               </p>
             </Editable>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                to="/menu" 
+              <Link
+                to="/menu"
                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 🍽️ Khám phá Menu
               </Link>
-              <Link 
-                to="/booking" 
+              <Link
+                to="/booking"
                 className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 border border-white/30"
               >
                 📅 Đặt bàn ngay
@@ -120,7 +152,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Promotions Section */}
+      {/* ============== Promotions Section ============== */}
       <section className="py-16 bg-gradient-to-r from-amber-50 to-orange-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">

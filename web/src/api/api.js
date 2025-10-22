@@ -206,10 +206,10 @@ export const customers = {
 };
 
 // =====================
-// 🔹 CONTENT MANAGEMENT
+// 🔹 HOMEPAGE CONTENT 
 // =====================
-export const getHomepageContent = () => api.get("/content/homepage");
-export const updateHomepageContent = (data) => api.put("/content/homepage", data);
+export const getHomepageContent = () => api.get("/home-content");
+export const updateHomepageContent = (id, data) => api.put(`/home-content/${id}`, data);
 
 
 export default api;
