@@ -1,6 +1,3 @@
-// ================================
-// ☕ Coffee Shop FE - Booking Page (with reservation)
-// ================================
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { tables, reservations } from "../api/api";
@@ -11,12 +8,12 @@ export default function BookingPage() {
   const [error, setError] = useState(null);
   const [selectedArea, setSelectedArea] = useState("all");
 
+  // 💡 SỬA ĐỔI: Cập nhật lại danh sách khu vực
   const areas = [
     { value: "all", label: "Tất cả" },
-    { value: "main", label: "Khu vực chính" },
+    { value: "indoor", label: "Phòng lạnh" },
+    { value: "outside", label: "Ngoài trời" },
     { value: "vip", label: "VIP" },
-    { value: "outdoor", label: "Ngoài trời" },
-    { value: "rooftop", label: "Sân thượng" },
   ];
 
   useEffect(() => {
@@ -72,6 +69,7 @@ export default function BookingPage() {
     }
   };
 
+  // 💡 LƯU Ý: Đã sửa lỗi thiếu `so_nguoi` trong form
   const handleBookTable = async (table) => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -87,29 +85,42 @@ export default function BookingPage() {
     }
 
     const { value: formValues } = await Swal.fire({
-     title: `Đặt bàn ${table.ten_ban || table.so_ban}`,
-     html: `
-       <input id="swal-name" class="swal2-input" placeholder="Họ tên">
-       <input id="swal-phone" class="swal2-input" placeholder="Số điện thoại">
-       <input id="swal-date" type="date" class="swal2-input">
-       <input id="swal-time" type="time" class="swal2-input"> <input id="swal-num" type="number" min="1" class="swal2-input" placeholder="Số người">
-       <textarea id="swal-note" class="swal2-textarea" placeholder="Ghi chú (tùy chọn)"></textarea>
-     `,
-     focusConfirm: false,
-     showCancelButton: true,
-     confirmButtonText: "Xác nhận đặt bàn",
-     preConfirm: () => {
-       return {
-         ho_ten: document.getElementById("swal-name").value,
-         sdt: document.getElementById("swal-phone").value,
-         ngay_dat: document.getElementById("swal-date").value,
-         gio_dat: document.getElementById("swal-time").value, // so_nguoi: document.getElementById("swal-num").value,
-         ghi_chu: document.getElementById("swal-note").value,
-       };
-     },
-   });
+      title: `Đặt bàn ${table.ten_ban || table.so_ban}`,
+      html: `
+        <input id="swal-name" class="swal2-input" placeholder="Họ tên">
+        <input id="swal-phone" class="swal2-input" placeholder="Số điện thoại">
+        <input id="swal-date" type="date" class="swal2-input">
+        <input id="swal-time" type="time" class="swal2-input">
+        <input id="swal-num" type="number" min="1" class="swal2-input" placeholder="Số người" value="${table.suc_chua || 1}">
+        <textarea id="swal-note" class="swal2-textarea" placeholder="Ghi chú (tùy chọn)"></textarea>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Xác nhận đặt bàn",
+      preConfirm: () => {
+        return {
+          ho_ten: document.getElementById("swal-name").value,
+          sdt: document.getElementById("swal-phone").value,
+          ngay_dat: document.getElementById("swal-date").value,
+          gio_dat: document.getElementById("swal-time").value,
+          so_nguoi: document.getElementById("swal-num").value, // Sửa lỗi thiếu
+          ghi_chu: document.getElementById("swal-note").value,
+        };
+      },
+    });
 
     if (!formValues) return;
+
+    // Kiểm tra form
+    if (!formValues.ho_ten || !formValues.sdt || !formValues.ngay_dat || !formValues.gio_dat || !formValues.so_nguoi) {
+      Swal.fire("Lỗi!", "Vui lòng điền đầy đủ thông tin.", "error");
+      return;
+    }
+    
+    if (parseInt(formValues.so_nguoi) > table.suc_chua) {
+       Swal.fire("Lỗi!", `Bàn này chỉ có sức chứa tối đa ${table.suc_chua} người.`, "error");
+       return;
+    }
 
     const reservationData = {
       ...formValues,
@@ -135,6 +146,7 @@ export default function BookingPage() {
     }
   };
 
+  // ... (Phần return JSX không đổi, nó sẽ tự động cập nhật `areas` mới) ...
   return (
     <div className="max-w-6xl mx-auto py-12">
       <h2 className="text-3xl font-semibold text-center text-red-700 mb-4">
@@ -144,6 +156,7 @@ export default function BookingPage() {
         Chọn bàn phù hợp với nhu cầu của bạn
       </p>
 
+      {/* Nút lọc sẽ tự động cập nhật 3 khu vực mới */}
       <div className="flex justify-center gap-2 mb-8 flex-wrap">
         {areas.map((area) => (
           <button
@@ -200,7 +213,8 @@ export default function BookingPage() {
                     👥 <strong>{table.suc_chua}</strong> người
                   </span>
                   <span className="text-neutral-500 capitalize">
-                    📍 {table.khu_vuc}
+                    {/* 💡 SỬA ĐỔI: Hiển thị nhãn khu vực mới */}
+                    📍 {areas.find(a => a.value === table.khu_vuc)?.label || table.khu_vuc}
                   </span>
                 </div>
                 <button
@@ -224,3 +238,4 @@ export default function BookingPage() {
     </div>
   );
 }
+

@@ -1,10 +1,10 @@
-// src/pages/admin/index.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "../../layouts/AdminLayout";
 import AdminDashboard from "./AdminDashboard";
 import ProductsPage from "./ProductsPage";
 import AdminOrders from "./AdminOrders";
 import AdminReservations from "./AdminReservations";
+import AdminTables from "./AdminTables";
 
 export default function AdminIndex() {
   return (
@@ -15,7 +15,7 @@ export default function AdminIndex() {
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="reservations" element={<AdminReservations />} />
-        {/* wildcard để cuối cùng */}
+        <Route path="tables" element={<AdminTables />} />
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Route>
     </Routes>

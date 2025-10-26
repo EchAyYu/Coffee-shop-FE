@@ -199,7 +199,15 @@ export const reservations = {
 };
 
 export const tables = {
+  // Public
   list: (params) => api.get("/tables", { params }),
+  getById: (id) => api.get(`/tables/${id}`),
+  
+  // Admin
+  create: (data) => api.post("/tables", data),
+  update: (id, data) => api.put(`/tables/${id}`, data),
+  delete: (id) => api.delete(`/tables/${id}`),
+  updateStatus: (id, trang_thai) => api.put(`/tables/${id}/status`, { trang_thai }),
 };
 
 export const customers = {

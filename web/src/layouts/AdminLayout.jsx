@@ -34,6 +34,7 @@ export default function AdminLayout() {
     { path: "/admin/orders", label: "Đơn hàng", icon: "📦", color: "orange" },
     { path: "/admin/reservations", label: "Đặt bàn", icon: "📅", color: "pink" },
     { path: "/admin/customers", label: "Khách hàng", icon: "👥", color: "purple" },
+    { path: "/admin/tables", label: "Quản lý Bàn", icon: "🪑", color: "gray" },
   ];
 
   const getColorClasses = (color) => {
