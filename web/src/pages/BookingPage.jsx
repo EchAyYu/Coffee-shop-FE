@@ -87,27 +87,27 @@ export default function BookingPage() {
     }
 
     const { value: formValues } = await Swal.fire({
-      title: `Đặt bàn ${table.ten_ban || table.so_ban}`,
-      html: `
-        <input id="swal-name" class="swal2-input" placeholder="Họ tên">
-        <input id="swal-phone" class="swal2-input" placeholder="Số điện thoại">
-        <input id="swal-date" type="date" class="swal2-input">
-        <input id="swal-num" type="number" min="1" class="swal2-input" placeholder="Số người">
-        <textarea id="swal-note" class="swal2-textarea" placeholder="Ghi chú (tùy chọn)"></textarea>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận đặt bàn",
-      preConfirm: () => {
-        return {
-          ho_ten: document.getElementById("swal-name").value,
-          sdt: document.getElementById("swal-phone").value,
-          ngay_dat: document.getElementById("swal-date").value,
-          so_nguoi: document.getElementById("swal-num").value,
-          ghi_chu: document.getElementById("swal-note").value,
-        };
-      },
-    });
+     title: `Đặt bàn ${table.ten_ban || table.so_ban}`,
+     html: `
+       <input id="swal-name" class="swal2-input" placeholder="Họ tên">
+       <input id="swal-phone" class="swal2-input" placeholder="Số điện thoại">
+       <input id="swal-date" type="date" class="swal2-input">
+       <input id="swal-time" type="time" class="swal2-input"> <input id="swal-num" type="number" min="1" class="swal2-input" placeholder="Số người">
+       <textarea id="swal-note" class="swal2-textarea" placeholder="Ghi chú (tùy chọn)"></textarea>
+     `,
+     focusConfirm: false,
+     showCancelButton: true,
+     confirmButtonText: "Xác nhận đặt bàn",
+     preConfirm: () => {
+       return {
+         ho_ten: document.getElementById("swal-name").value,
+         sdt: document.getElementById("swal-phone").value,
+         ngay_dat: document.getElementById("swal-date").value,
+         gio_dat: document.getElementById("swal-time").value, // so_nguoi: document.getElementById("swal-num").value,
+         ghi_chu: document.getElementById("swal-note").value,
+       };
+     },
+   });
 
     if (!formValues) return;
 
