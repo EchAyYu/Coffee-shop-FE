@@ -52,9 +52,12 @@ api.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method
     });
-
+    // 1. KIỂM TRA XEM CÓ PHẢI LỖI TỪ CHÍNH ENDPOINT XÁC THỰC KHÔNG
+      const isAuthEndpoint =
+        original.url?.includes("/auth/login") ||
+        original.url?.includes("/auth/refresh");  
     // Handle 401 Unauthorized
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       if (refreshing) {
         return new Promise((resolve, reject) => queue.push({ resolve, reject }))
           .then((token) => {
