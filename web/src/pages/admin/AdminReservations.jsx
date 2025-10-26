@@ -23,7 +23,7 @@ export default function AdminReservations() {
     }
   };
 
-  const handleUpdateStatus = async (id, status) => {
+const handleUpdateStatus = async (id, status) => {
     Swal.fire({
       title: `Cập nhật trạng thái?`,
       text: `Bạn có chắc muốn đổi trạng thái đơn đặt bàn này thành "${status}"?`,
@@ -36,9 +36,18 @@ export default function AdminReservations() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
+          // 1. GỌI API ĐỂ CẬP NHẬT
           await reservations.update(id, { trang_thai: status });
+
+          // 2. HIỂN THỊ THÀNH CÔNG
           Swal.fire("Thành công!", "Đã cập nhật trạng thái.", "success");
-          loadReservations(); // Tải lại danh sách
+
+          // 3. CẬP NHẬT LẠI DỮ LIỆU TRONG GIAO DIỆN
+          setData((currentData) =>
+            currentData.map((item) =>
+              item.id_datban === id ? { ...item, trang_thai: status } : item
+            )
+          );
         } catch (error) {
           Swal.fire("Lỗi!", "Không thể cập nhật trạng thái.", "error");
         }
@@ -95,31 +104,37 @@ export default function AdminReservations() {
                     <span
                       aria-hidden
                       className={`absolute inset-0 ${
-                        item.trang_thai === "confirmed"
-                          ? "bg-green-200"
-                          : "bg-yellow-200"
-                      } opacity-50 rounded-full`}
-                    ></span>
-                    <span className="relative">{item.trang_thai}</span>
-                  </span>
-                </td>
-                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                  <button
-                    onClick={() => handleUpdateStatus(item.id_datban, "CONFIRMED")}
-                    className="text-green-600 hover:text-green-900 mr-2"
-                  >
-                    Xác nhận
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(item.id_datban, "CANCELLED")}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Hủy
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+                        item.trang_thai?.toUpperCase() === "CONFIRMED"
+                      ? "bg-green-200 text-green-900" // Đã xác nhận
+                      : item.trang_thai?.toUpperCase() === "CANCELLED"
+                      ? "bg-red-200 text-red-900" // Đã hủy
+                      : "bg-yellow-200 text-yellow-900" // Mặc định (Pending)
+                  } opacity-50 rounded-full`}
+                ></span>
+                <span className="relative">{item.trang_thai}</span>
+              </span>
+            </td>
+            <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+              <button
+                // ✅ TÙY CHỌN: Vô hiệu hóa nút nếu đã ở trạng thái đó
+                disabled={item.trang_thai?.toUpperCase() === "CONFIRMED"}
+                onClick={() => handleUpdateStatus(item.id_datban, "CONFIRMED")}
+                className="text-green-600 hover:text-green-900 mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Xác nhận
+              </button>
+              <button
+                // ✅ TÙY CHỌN: Vô hiệu hóa nút nếu đã ở trạng thái đó
+                disabled={item.trang_thai?.toUpperCase() === "CANCELLED"}
+                onClick={() => handleUpdateStatus(item.id_datban, "CANCELLED")}
+                className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
         </table>
       </div>
     </div>
