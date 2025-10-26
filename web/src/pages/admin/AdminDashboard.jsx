@@ -108,9 +108,9 @@ export default function AdminDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {stats.map((stat) => (
           <div
-            key={index}
+            key={stat.title}
             className={`${stat.bgColor} ${stat.borderColor} border rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200`}
           >
             <div className="flex items-center justify-between">
@@ -231,9 +231,9 @@ export default function AdminDashboard() {
             <p>Chưa có khách hàng nào</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.customers.map((customer) => (
-              <div key={customer.id_kh || customer.id_tk || customer.email} className="p-4 bg-gray-50 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.customers.map((customer, index) => ( // 💡 1. Thêm ", index" vào đây
+              <div key={customer.id_kh || customer.id_tk || customer.email || index} className="p-4 bg-gray-50 rounded-xl"> {/* 💡 2. Thêm "|| index" vào đây */}
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 grid place-items-center text-white font-semibold">
                     {(customer.ho_ten || customer.ten_dn || "A").charAt(0).toUpperCase()}
