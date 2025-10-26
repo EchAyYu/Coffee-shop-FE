@@ -165,7 +165,7 @@ export const deleteOrder = (id) => api.delete(`/orders/${id}`);
 // =====================
 export const getOrdersAdmin = () => api.get("/admin/orders");
 export const updateOrderStatus = (id, status) =>
-  api.put(`/admin/orders/${id}/status`, { status });
+  api.put(`/admin/orders/${id}`, { trang_thai: status });
 export const deleteOrderAdmin = (id) => api.delete(`/admin/orders/${id}`);
 
 // =====================

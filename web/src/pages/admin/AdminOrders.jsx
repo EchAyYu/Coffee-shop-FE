@@ -196,7 +196,7 @@ export default function AdminOrders() {
                           key={order.id_don}
                           value={order.trang_thai?.toLowerCase() || "pending"}
                           onChange={async (e) => {
-                            const newStatus = e.target.value;
+                            const newStatus = e.target.value.toUpperCase();
                             try {
                               await updateOrderStatus(order.id_don, newStatus);
                               setOrders((prev) =>
@@ -226,7 +226,7 @@ export default function AdminOrders() {
                           <option value="confirmed">Đã xác nhận</option>
                           <option value="paid">Đã thanh toán</option>
                           <option value="shipped">Đang giao</option>
-                          <option value="completed">Hoàn thành</option>
+                          <option value="done">Hoàn thành</option>
                           <option value="cancelled">Đã hủy</option>
                         </select>
                       </div>
