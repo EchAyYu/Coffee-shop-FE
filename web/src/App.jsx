@@ -22,7 +22,7 @@ import BookingPage from "./pages/BookingPage";
 import CustomerInfoPage from "./pages/CustomerInfoPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-
+import CheckoutPage from "./pages/CheckoutPage";
 // ---- Admin ----
 import AdminIndex from "./pages/admin";
 
@@ -144,6 +144,7 @@ function MainApp() {
             <Route path="/customer" element={<CustomerInfoPage user={user} />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/admin/*" element={<AdminIndex />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
