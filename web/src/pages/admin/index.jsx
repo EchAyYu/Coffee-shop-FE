@@ -5,6 +5,7 @@ import ProductsPage from "./ProductsPage";
 import AdminOrders from "./AdminOrders";
 import AdminReservations from "./AdminReservations";
 import AdminTables from "./AdminTables";
+import AdminCustomers from "./AdminCustomers";
 
 export default function AdminIndex() {
   return (
@@ -16,6 +17,7 @@ export default function AdminIndex() {
         <Route path="orders" element={<AdminOrders />} />
         <Route path="reservations" element={<AdminReservations />} />
         <Route path="tables" element={<AdminTables />} />
+        <Route path="customers" element={<AdminCustomers />} />
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Route>
     </Routes>
