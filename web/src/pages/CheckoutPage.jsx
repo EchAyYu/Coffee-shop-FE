@@ -1,11 +1,13 @@
+// client/src/pages/CheckoutPage.jsx
 // ================================
-// ☕ LO COFFEE - Checkout Page (prefill + lock/unlock + save to profile)
+// ☕ LO COFFEE - Checkout Page (prefill + lock/unlock + save profile + voucher)
 // ================================
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../components/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { createOrder } from "../api/api";
+import { vouchers } from "../api/api"; // <- thêm API voucher
 import { getCheckoutProfile, updateCheckoutProfile } from "../api/profile";
 import AddressFields from "../components/AddressFields";
 import Swal from "sweetalert2";
@@ -18,6 +20,10 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [locked, setLocked] = useState(true);
   const [saveToProfile, setSaveToProfile] = useState(false);
+
+  // voucher
+  const [voucherCode, setVoucherCode] = useState("");
+  const [discount, setDiscount] = useState(0);
 
   const [form, setForm] = useState({
     receiver_name: "",
@@ -34,7 +40,7 @@ export default function CheckoutPage() {
   const VIETQR_ACCOUNT_NAME = "HUYNH NGOC HAU";
   const VIETQR_TEMPLATE = "compact2";
 
-  // Prefill từ API hồ sơ; fallback user context
+  // Prefill
   useEffect(() => {
     (async () => {
       try {
@@ -72,18 +78,39 @@ export default function CheckoutPage() {
   const change = (k, v) => setForm((s) => ({ ...s, [k]: v }));
 
   // VietQR URL
-  const shortAddress = useMemo(() => (form.address.street + " " + form.address.ward + " " + form.address.district).trim().slice(0, 30), [form.address]);
+  const shortAddress = useMemo(
+    () => (form.address.street + " " + form.address.ward + " " + form.address.district).trim().slice(0, 30),
+    [form.address]
+  );
   const orderDescription = useMemo(
     () => encodeURIComponent(`${form.phone || "SDT"} - ${shortAddress || "DiaChi"} - ${form.receiver_name || "KhachHang"}`),
     [form.phone, shortAddress, form.receiver_name]
   );
   const vietQRUrl = useMemo(
     () =>
-      `https://img.vietqr.io/image/${VIETQR_BANK_ID}-${VIETQR_ACCOUNT_NO}-${VIETQR_TEMPLATE}.png?amount=${totalPrice}&addInfo=${orderDescription}&accountName=${encodeURIComponent(
+      `https://img.vietqr.io/image/${VIETQR_BANK_ID}-${VIETQR_ACCOUNT_NO}-${VIETQR_TEMPLATE}.png?amount=${totalPrice - discount}&addInfo=${orderDescription}&accountName=${encodeURIComponent(
         VIETQR_ACCOUNT_NAME
       )}`,
-    [totalPrice, orderDescription]
+    [totalPrice, discount, orderDescription]
   );
+
+  // Áp mã voucher
+  async function applyVoucher() {
+    if (!voucherCode.trim()) return;
+    try {
+      const { data } = await vouchers.validate(voucherCode.trim(), totalPrice);
+      const dc = Number(data?.data?.discount || 0);
+      setDiscount(dc);
+      Swal.fire("Thành công", `Áp mã thành công: -${dc.toLocaleString("vi-VN")} ₫`, "success");
+    } catch (e) {
+      setDiscount(0);
+      Swal.fire("Lỗi", e?.response?.data?.message || "Mã không hợp lệ", "error");
+    }
+  }
+  function clearVoucher() {
+    setVoucherCode("");
+    setDiscount(0);
+  }
 
   async function submitOrder(e) {
     e.preventDefault();
@@ -101,7 +128,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Nếu user mở khoá và tick lưu hồ sơ → cập nhật hồ sơ trước
+      // Lưu hồ sơ nếu mở khóa + tick
       if (!locked && saveToProfile) {
         await updateCheckoutProfile({
           fullName: form.receiver_name,
@@ -122,10 +149,8 @@ export default function CheckoutPage() {
         email_nhan: form.emailInvoice,
         ghi_chu: form.note,
         pttt: form.pttt, // "COD" | "BANK_TRANSFER"
-        items: cart.map((i) => ({
-          id_mon: i.id_mon || i._id,
-          so_luong: i.so_luong,
-        })),
+        items: cart.map((i) => ({ id_mon: i.id_mon || i._id, so_luong: i.so_luong })),
+        voucher_code: discount > 0 ? voucherCode.trim() : undefined,
       };
 
       const res = await createOrder(payload);
@@ -161,7 +186,7 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-bold text-center text-red-700 mb-8">Xác nhận đơn hàng</h1>
 
       <div className="grid lg:grid-cols-2 gap-12">
-        {/* Cột trái: Form */}
+        {/* Form */}
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Thông tin nhận hàng</h2>
@@ -185,7 +210,6 @@ export default function CheckoutPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 transition"
               />
             </div>
-
             {/* SĐT */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -199,14 +223,14 @@ export default function CheckoutPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 transition"
               />
             </div>
-
             {/* Địa chỉ */}
             <div>
-              <div className="text-sm font-medium text-gray-700 mb-1">Địa chỉ nhận hàng <span className="text-red-500">*</span></div>
+              <div className="text-sm font-medium text-gray-700 mb-1">
+                Địa chỉ nhận hàng <span className="text-red-500">*</span>
+              </div>
               <AddressFields value={form.address} onChange={(addr) => change("address", addr)} disabled={locked || loading} />
             </div>
-
-            {/* Email (hóa đơn / bắt buộc nếu chuyển khoản) */}
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email {form.pttt === "BANK_TRANSFER" ? <span className="text-red-500">*</span> : "(Để nhận hóa đơn)"}
@@ -220,7 +244,6 @@ export default function CheckoutPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 transition"
               />
             </div>
-
             {/* Ghi chú */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú (tuỳ chọn)</label>
@@ -232,18 +255,13 @@ export default function CheckoutPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 transition"
               />
             </div>
-
             {/* PTTT */}
             <div className="pt-2">
               <h3 className="text-md font-medium text-gray-700 mb-2">
                 Phương thức thanh toán <span className="text-red-500">*</span>
               </h3>
               <div className="space-y-2">
-                <label
-                  className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                    form.pttt === "COD" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "hover:bg-gray-50 border-gray-300"
-                  }`}
-                >
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${form.pttt === "COD" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "hover:bg-gray-50 border-gray-300"}`}>
                   <input
                     type="radio"
                     name="pttt"
@@ -255,11 +273,7 @@ export default function CheckoutPage() {
                   />
                   <span className="text-sm font-medium text-gray-800">Thanh toán khi nhận hàng (COD)</span>
                 </label>
-                <label
-                  className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                    form.pttt === "BANK_TRANSFER" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "hover:bg-gray-50 border-gray-300"
-                  }`}
-                >
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${form.pttt === "BANK_TRANSFER" ? "bg-red-50 border-red-300 ring-1 ring-red-300" : "hover:bg-gray-50 border-gray-300"}`}>
                   <input
                     type="radio"
                     name="pttt"
@@ -274,13 +288,45 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Tick cập nhật hồ sơ */}
+            {/* Lưu hồ sơ */}
             {!locked && (
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={saveToProfile} onChange={(e) => setSaveToProfile(e.target.checked)} />
                 <span>Cập nhật vào hồ sơ</span>
               </label>
             )}
+
+            {/* Voucher */}
+            <div className="pt-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mã giảm giá</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value)}
+                  placeholder="Nhập mã voucher"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 transition"
+                />
+                <button
+                  type="button"
+                  onClick={applyVoucher}
+                  disabled={loading || !voucherCode.trim()}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300"
+                >
+                  Áp dụng
+                </button>
+                {discount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearVoucher}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                  >
+                    Hủy mã
+                  </button>
+                )}
+              </div>
+              {discount > 0 && <p className="text-sm text-emerald-700 mt-2">Đã áp mã. Giảm: <b>{discount.toLocaleString("vi-VN")} ₫</b></p>}
+            </div>
 
             <div className="pt-4">
               <button
@@ -294,7 +340,7 @@ export default function CheckoutPage() {
           </form>
         </div>
 
-        {/* Cột phải: Tóm tắt + VietQR */}
+        {/* Tóm tắt + VietQR */}
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-100 h-fit lg:sticky top-28">
           <h2 className="text-xl font-semibold mb-6 border-b border-gray-200 pb-4 text-gray-800">
             Tóm tắt đơn hàng ({cart.length} món)
@@ -306,7 +352,7 @@ export default function CheckoutPage() {
                 <div className="flex items-center gap-4">
                   <img
                     src={item.anh || item.imageUrl || "https://placehold.co/64x64/F9F5EC/A1887F?text=O"}
-                    alt={item.ten_mon}
+                    alt={item.ten_mon || item.name}
                     className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                   />
                   <div className="flex-1">
@@ -322,9 +368,17 @@ export default function CheckoutPage() {
           </div>
 
           <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Tạm tính:</span>
+              <span>{totalPrice.toLocaleString("vi-VN")} ₫</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Giảm giá:</span>
+              <span className="text-emerald-600">- {discount.toLocaleString("vi-VN")} ₫</span>
+            </div>
             <div className="flex justify-between font-semibold text-lg text-gray-800 pt-2">
               <span>Tổng cộng:</span>
-              <span className="text-red-600">{totalPrice.toLocaleString("vi-VN")} ₫</span>
+              <span className="text-red-600">{(totalPrice - discount).toLocaleString("vi-VN")} ₫</span>
             </div>
           </div>
 
@@ -332,24 +386,11 @@ export default function CheckoutPage() {
             <div className="mt-6 pt-6 border-t border-gray-200">
               <h3 className="text-md font-semibold mb-3 text-gray-800">Thông tin chuyển khoản:</h3>
               <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-800 space-y-1">
-                <p>
-                  Ngân hàng: <span className="font-medium">Vietcombank</span>
-                </p>
-                <p>
-                  Số tài khoản: <span className="font-medium">{VIETQR_ACCOUNT_NO}</span>
-                </p>
-                <p>
-                  Chủ tài khoản: <span className="font-medium">{VIETQR_ACCOUNT_NAME}</span>
-                </p>
-                <p>
-                  Số tiền: <span className="font-medium text-red-600">{totalPrice.toLocaleString("vi-VN")} ₫</span>
-                </p>
-                <p>
-                  Nội dung:{" "}
-                  <span className="font-medium">
-                    {form.phone} - {shortAddress} - {form.receiver_name}
-                  </span>
-                </p>
+                <p>Ngân hàng: <span className="font-medium">Vietcombank</span></p>
+                <p>Số tài khoản: <span className="font-medium">{VIETQR_ACCOUNT_NO}</span></p>
+                <p>Chủ tài khoản: <span className="font-medium">{VIETQR_ACCOUNT_NAME}</span></p>
+                <p>Số tiền: <span className="font-medium text-red-600">{(totalPrice - discount).toLocaleString("vi-VN")} ₫</span></p>
+                <p>Nội dung: <span className="font-medium">{form.phone} - {shortAddress} - {form.receiver_name}</span></p>
                 <img src={vietQRUrl} alt="VietQR Code" className="mt-3 max-w-[160px] mx-auto border rounded shadow-sm" />
                 <p className="text-xs mt-2 text-center text-blue-700">(Quét mã QR bằng ứng dụng ngân hàng)</p>
               </div>

@@ -216,4 +216,23 @@ export const customers = {
   update: (data) => api.put("/customers/me", data),
 };
 
+// Loyalty & Voucher
+export const vouchers = {
+  catalog:  () => api.get("/vouchers/catalog"),
+  my:       () => api.get("/vouchers/my"),
+  redeem:   (voucher_id) => api.post("/vouchers/redeem", { voucher_id }),
+  validate: (code, order_total) => api.post("/vouchers/validate", { code, order_total }),
+};
+
+// Points
+export const loyalty = {
+  myPoints: () => api.get("/loyalty/me/points"),
+};
+
+// Notifications
+export const notifications = {
+  my:       (unread_only = false) => api.get(`/notifications/my?unread_only=${unread_only ? 1 : 0}`),
+  read:     (id) => api.put(`/notifications/${id}/read`),
+  readAll:  () => api.put("/notifications/read-all"),
+};
 export default api;
