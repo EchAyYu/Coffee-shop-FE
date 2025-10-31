@@ -1,75 +1,70 @@
 // ================================
-// ☕ Coffee Shop FE - Register Page
+// ☕ LO COFFEE - Register Page (structured address for Cần Thơ)
 // ================================
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ErrorDebug from "../components/ErrorDebug";
+import AddressFields from "../components/AddressFields";
+import data from "../constants/cantho.json";
 
 export default function Register() {
-  const [form, setForm] = useState({ 
-    ho_ten: "", 
-    ten_dn: "", 
-    mat_khau: "", 
+  const [form, setForm] = useState({
+    ho_ten: "",
+    ten_dn: "",
+    mat_khau: "",
     email: "",
     so_dt: "",
-    dia_chi: ""
+    address: { street: "", ward: "", district: "", province: data.province },
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [errorDetails, setErrorDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
+
   const navigate = useNavigate();
   const { register, login } = useAuth();
+
+  const change = (k, v) => setForm((s) => ({ ...s, [k]: v }));
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setErrorDetails(null);
 
-    // Validation
     if (form.mat_khau !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp");
       return;
     }
-
     if (form.mat_khau.length < 6) {
       setError("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
+    if (!form.address.district || !form.address.ward || !form.address.street) {
+      setError("Vui lòng chọn Quận/Huyện, Phường/Xã và nhập Số nhà, Tên đường");
+      return;
+    }
 
     setLoading(true);
-
     try {
-      // Đăng ký tài khoản
-      await register(form);
-      
-      // Sau khi đăng ký thành công, tự động đăng nhập
+      // Gửi đúng payload BE đang chờ (đã bổ sung structured address)
+      await register({
+        ten_dn: form.ten_dn,
+        mat_khau: form.mat_khau,
+        ho_ten: form.ho_ten,
+        email: form.email,
+        sdt: form.so_dt,
+        street: form.address.street,
+        ward: form.address.ward,
+        district: form.address.district,
+        province: form.address.province,
+      });
+
+      // Đăng nhập luôn
       await login(form.ten_dn, form.mat_khau);
-      
-      // Redirect to customer info page to show the registered information
       navigate("/customer");
     } catch (err) {
-      console.error("Register Error:", err);
-      
-      // Xử lý các loại lỗi khác nhau
-      let errorMessage = "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.";
-      
-      if (err?.response?.status === 403) {
-        errorMessage = "Không có quyền truy cập. Vui lòng liên hệ quản trị viên.";
-      } else if (err?.response?.status === 409) {
-        errorMessage = "Tên đăng nhập hoặc email đã tồn tại. Vui lòng chọn thông tin khác.";
-      } else if (err?.response?.status === 400) {
-        errorMessage = "Thông tin không hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.";
-      } else if (err?.response?.status >= 500) {
-        errorMessage = "Lỗi máy chủ. Vui lòng thử lại sau.";
-      } else if (!err?.response) {
-        errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
-      } else if (err?.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError(err?.response?.data?.message || "Đăng ký thất bại");
       setErrorDetails(err);
     } finally {
       setLoading(false);
@@ -80,142 +75,113 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
       <div className="max-w-md w-full mx-4">
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 grid place-items-center text-white font-bold text-2xl mx-auto mb-4">
               L
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              LO COFFEE
-            </h1>
+            <h1 className="text-3xl font-bold">LO COFFEE</h1>
             <p className="text-gray-600">Tạo tài khoản mới</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Họ tên */}
             <div>
-              <label htmlFor="ho_ten" className="block text-sm font-medium text-gray-700 mb-2">
-                Họ và tên
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Họ và tên</label>
               <input
-                id="ho_ten"
-                name="ho_ten"
                 type="text"
-                placeholder="Nhập họ và tên"
                 value={form.ho_ten}
-                onChange={(e) => setForm({ ...form, ho_ten: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                onChange={(e) => change("ho_ten", e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
                 disabled={loading}
+                placeholder="Nhập họ và tên"
               />
             </div>
 
+            {/* Tên đăng nhập */}
             <div>
-              <label htmlFor="ten_dn" className="block text-sm font-medium text-gray-700 mb-2">
-                Tên đăng nhập
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tên đăng nhập</label>
               <input
-                id="ten_dn"
-                name="ten_dn"
                 type="text"
-                placeholder="Nhập tên đăng nhập"
                 value={form.ten_dn}
-                onChange={(e) => setForm({ ...form, ten_dn: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                onChange={(e) => change("ten_dn", e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
                 disabled={loading}
+                placeholder="Nhập tên đăng nhập"
               />
             </div>
 
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
-                id="email"
-                name="email"
                 type="email"
-                placeholder="Nhập email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                onChange={(e) => change("email", e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
                 disabled={loading}
+                placeholder="Nhập email"
               />
             </div>
 
+            {/* Số điện thoại */}
             <div>
-              <label htmlFor="so_dt" className="block text-sm font-medium text-gray-700 mb-2">
-                Số điện thoại
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
               <input
-                id="so_dt"
-                name="so_dt"
                 type="tel"
-                placeholder="Nhập số điện thoại"
                 value={form.so_dt}
-                onChange={(e) => setForm({ ...form, so_dt: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                onChange={(e) => change("so_dt", e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
+                disabled={loading}
+                placeholder="Nhập số điện thoại"
+              />
+            </div>
+
+            {/* Địa chỉ Cần Thơ */}
+            <div>
+              <h4 className="font-semibold mb-2">Địa chỉ</h4>
+              <AddressFields
+                value={form.address}
+                onChange={(addr) => change("address", addr)}
                 disabled={loading}
               />
             </div>
 
+            {/* Mật khẩu */}
             <div>
-              <label htmlFor="dia_chi" className="block text-sm font-medium text-gray-700 mb-2">
-                Địa chỉ
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
               <input
-                id="dia_chi"
-                name="dia_chi"
-                type="text"
-                placeholder="Nhập địa chỉ"
-                value={form.dia_chi}
-                onChange={(e) => setForm({ ...form, dia_chi: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="mat_khau" className="block text-sm font-medium text-gray-700 mb-2">
-                Mật khẩu
-              </label>
-              <input
-                id="mat_khau"
-                name="mat_khau"
                 type="password"
-                placeholder="Nhập mật khẩu (ít nhất 6 ký tự)"
                 value={form.mat_khau}
-                onChange={(e) => setForm({ ...form, mat_khau: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                onChange={(e) => change("mat_khau", e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
                 disabled={loading}
                 minLength={6}
+                placeholder="Ít nhất 6 ký tự"
               />
             </div>
 
+            {/* Xác nhận mật khẩu */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Xác nhận mật khẩu
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Xác nhận mật khẩu</label>
               <input
-                id="confirmPassword"
-                name="confirmPassword"
                 type="password"
-                placeholder="Nhập lại mật khẩu"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
                 disabled={loading}
+                placeholder="Nhập lại mật khẩu"
               />
             </div>
 
             {error && (
-              <ErrorDebug 
-                error={errorDetails} 
+              <ErrorDebug
+                error={errorDetails}
                 onRetry={() => {
                   setError("");
                   setErrorDetails(null);
@@ -232,7 +198,6 @@ export default function Register() {
             </button>
           </form>
 
-          {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-gray-600 text-sm">
               Đã có tài khoản?{" "}
@@ -240,12 +205,8 @@ export default function Register() {
                 Đăng nhập ngay
               </Link>
             </p>
-            
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <Link 
-                to="/" 
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
+              <Link to="/" className="text-sm text-gray-500 hover:text-gray-700">
                 ← Quay lại trang chủ
               </Link>
             </div>
