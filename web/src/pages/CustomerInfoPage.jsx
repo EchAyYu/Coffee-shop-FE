@@ -1,5 +1,5 @@
 // ================================
-// ☕ LO COFFEE - Customer Info (view/edit structured address)
+// ☕ LO COFFEE - Customer Info (Updated to show Loyalty Points)
 // ================================
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -7,7 +7,10 @@ import AddressFields from "../components/AddressFields";
 import { getCheckoutProfile, updateCheckoutProfile } from "../api/profile";
 
 export default function CustomerInfoPage() {
-  const { user, setUser } = useAuth();
+  // ------------------------------------
+  // 🌟 LẤY THÊM "points" TỪ CONTEXT 🌟
+  // ------------------------------------
+  const { user, setUser, points } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -300,7 +303,10 @@ export default function CustomerInfoPage() {
             value={user.customer?.ngay_tao ? new Date(user.customer.ngay_tao).toLocaleDateString("vi-VN") : "—"}
             color="green"
           />
-          <StatCard label="Trạng thái" value="Active" color="purple" />
+          {/* ------------------------------------ */}
+          {/* 🌟 THAY THẾ CARD "Trạng thái" BẰNG CARD "Điểm" 🌟 */}
+          {/* ------------------------------------ */}
+          <StatCard label="Điểm Tích Lũy" value={points || 0} color="orange" />
         </div>
       </div>
     </div>
