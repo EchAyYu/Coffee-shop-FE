@@ -1,6 +1,6 @@
 // src/pages/admin/AdminOrders.jsx - Modern & Bright Design
 import { useEffect, useState } from "react";
-import { getOrdersAdmin, updateOrderStatus } from "../../api/api";
+import { getOrdersAdmin, updateOrderStatus } from "../../api/adminApi";
 import Swal from "sweetalert2";
 
 export default function AdminOrders() {

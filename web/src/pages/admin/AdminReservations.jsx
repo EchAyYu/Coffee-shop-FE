@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { reservations } from "../../api/api";
+import { reservations } from "../../api/adminApi";
 import Swal from "sweetalert2";
 
 export default function AdminReservations() {

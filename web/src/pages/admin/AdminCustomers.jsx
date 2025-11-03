@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { customers } from "../../api/api"; // Assuming customers.getAll, deleteCustomer are defined
+import { customers } from "../../api/adminApi"; // Assuming customers.getAll, deleteCustomer are defined
 import Swal from "sweetalert2";
 import { Link, useSearchParams } from "react-router-dom";
 import { Users, Search, X, ArrowLeft, ArrowRight, Trash2, Edit2, Plus, UserPlus } from "lucide-react"; // Icons
