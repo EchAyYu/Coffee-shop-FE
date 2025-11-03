@@ -1,21 +1,32 @@
+// ================================
+// ☕ Coffee Shop FE - Socket.io Client (Sửa lỗi export)
+// ================================
 import { io } from "socket.io-client";
 
-// Lấy URL của backend, giống như trong api.js
-const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+// URL của máy chủ Backend
+const URL = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
-// Khởi tạo socket
-// autoConnect: false -> chúng ta sẽ kết nối thủ công khi user đăng nhập
-const socket = io(BASE_URL, {
-  autoConnect: false,
-  withCredentials: true, // Gửi cookie (nếu cần cho xác thực)
+// 💡 1. EXPORT CONST (Named export), không dùng default
+export const socket = io(URL, {
+  autoConnect: false,
+  withCredentials: true, // Rất quan trọng để gửi cookie (nếu BE cần)
 });
 
-// Gửi token qua auth (nếu middleware socket của bạn cần)
-// socket.on("connect", () => {
-//   const token = localStorage.getItem("access_token");
-//   if (token) {
-//     socket.auth = { token: `Bearer ${token}` };
-//   }
-// });
+// 💡 2. EXPORT HÀM connectSocket (Named export)
+export const connectSocket = (id_tk) => {
+  if (!socket.connected && id_tk) {
+    console.log(`🔌 Đang kết nối socket cho user: ${id_tk}`);
+    socket.connect();
+    // Sau khi kết nối, gửi sự kiện 'join' để vào "phòng" của riêng mình
+    socket.emit("join", id_tk);
+  }
+};
 
-export default socket;
+// 💡 3. EXPORT HÀM disconnectSocket (Named export)
+export const disconnectSocket = () => {
+  if (socket.connected) {
+    console.log("🔌 Ngắt kết nối socket.");
+    socket.disconnect();
+  }
+};
+

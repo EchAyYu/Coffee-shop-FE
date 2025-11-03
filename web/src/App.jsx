@@ -1,5 +1,5 @@
 // ===============================
-// ☕ Coffee Shop - App.jsx (Updated for Notifications)
+// ☕ Coffee Shop - App.jsx (Updated for Notifications & Socket Connection)
 // ===============================
 import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -27,8 +27,9 @@ import RedeemVoucherPage from "./pages/RedeemVoucherPage";
 // ---- Admin ----
 import AdminIndex from "./pages/admin";
 
-// 🌟 1. IMPORT NOTIFICATION BELL 🌟
+// 🌟 1. IMPORT NOTIFICATION BELL VÀ SOCKET 🌟
 import NotificationBell from "./components/NotificationBell";
+import { connectSocket, disconnectSocket } from "./socket.js"; // 💡 THÊM IMPORT NÀY
 
 // ===============================
 // 🔹 Top Navigation
@@ -89,26 +90,26 @@ function TopBar({ user, onCartOpen, onLogout }) {
               <button
                 onClick={onLogout}
                 className="px-3 py-2 border rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
-              >
-                Đăng xuất
-              </button>
-            </div>
-          )}
+            	>
+            	  Đăng xuất
+          	  </button>
+          	</div>
+          )}
 
-          {/* Giỏ hàng */}
-          <button
-            onClick={onCartOpen}
-            className="px-3 py-2 border rounded-xl hover:bg-neutral-50"
-          >
-            🛒
-          </button>
+        	{/* 🌟 2. THÊM NÚT CHUÔNG VÀO ĐÂY 🌟 */}
+        	{/* Chỉ hiển thị chuông khi đã đăng nhập */}
+        	{user && <NotificationBell />}
 
-         {/* 🌟 2. THÊM NÚT CHUÔNG VÀO ĐÂY 🌟 */}
-         <NotificationBell />
-
-        </div>
-      </div>
-    </header>
+        	{/* Giỏ hàng */}
+        	<button
+        	  onClick={onCartOpen}
+        	  className="px-3 py-2 border rounded-xl hover:bg-neutral-50"
+      	>
+        	  🛒
+      	  </button>
+    	</div>
+    </div>
+  </header>
   );
 }
 
@@ -118,6 +119,20 @@ function TopBar({ user, onCartOpen, onLogout }) {
 function MainApp() {
   const [cartOpen, setCartOpen] = useState(false);
   const { user, logout } = useAuth();
+
+  // 🌟 3. THÊM LOGIC KẾT NỐI SOCKET VÀO ĐÂY 🌟
+  useEffect(() => {
+    if (user && user.id_tk) {
+      // Nếu có user và user có id_tk, bắt đầu kết nối socket
+      connectSocket(user.id_tk);
+    }
+
+    // Hàm cleanup: sẽ chạy khi user đăng xuất (user -> null)
+    // hoặc khi component bị unmount
+    return () => {
+      disconnectSocket();
+    };
+  }, [user]); // Dependency array là [user], nó sẽ chạy lại khi user thay đổi
 
   return (
     <CartProvider>
@@ -148,19 +163,19 @@ function MainApp() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/redeem" element={<RedeemVoucherPage />} />
-            <Route path="/admin/*" element={<AdminIndex />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
+        	  <Route path="/redeem" element={<RedeemVoucherPage />} />
+    	  <Route path="/admin/*" element={<AdminIndex />} />
+    	  <Route path="*" element={<Navigate to="/" replace />} />
+    	</Routes>
+  	</main>
 
-        <footer className="border-t mt-12">
-          <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
-            © {new Date().getFullYear()} LO COFFEE — Graduation Project.
-          </div>
-        </footer>
-      </div>
-    </CartProvider>
+  	<footer className="border-t mt-12">
+  	  <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
+  		  © {new Date().getFullYear()} LO COFFEE — Graduation Project.
+  	  </div>
+  	</footer>
+    </div>
+  </CartProvider>
   );
 }
 
@@ -169,8 +184,9 @@ function MainApp() {
 // ===============================
 export default function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+  	<AuthProvider>
+  	  <MainApp />
+  	</AuthProvider>
   );
 }
+
