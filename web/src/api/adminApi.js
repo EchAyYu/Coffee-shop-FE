@@ -119,7 +119,7 @@ export const deleteProduct = (id) => adminApi.delete(`/products/${id}`);
 // (Các hàm này cho AdminOrders.jsx)
 export const getOrdersAdmin = () => adminApi.get("/admin/orders");
 export const updateOrderStatus = (id, status) =>
-  adminApi.put(`/admin/orders/${id}`, { trang_thai: status });
+  adminApi.put(`/admin/orders/${id}/status`, { trang_thai: status });
 export const deleteOrderAdmin = (id) => adminApi.delete(`/admin/orders/${id}`);
 
 // 💡 EXPORT OBJECTS (Giống như api.js gốc của bạn)

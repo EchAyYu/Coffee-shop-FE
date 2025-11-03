@@ -1,5 +1,5 @@
 // ================================
-// ☕ Coffee Shop FE - API Service
+// ☕ Coffee Shop FE - API Service (PHIÊN BẢN HOÀN CHỈNH)
 // ================================
 import axios from "axios";
 
@@ -24,10 +24,13 @@ export function clearToken() {
   delete api.defaults.headers.common.Authorization;
 }
 
-// ===== Request Interceptor =====
+// ===== Request Interceptor (QUAN TRỌNG) =====
+// Đảm bảo mọi request đều đính kèm token nếu có
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
@@ -44,19 +47,10 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config || {};
     
-    // Log error for debugging
-    console.error("API Error:", {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      url: error.config?.url,
-      method: error.config?.method
-    });
-    // 1. KIỂM TRA XEM CÓ PHẢI LỖI TỪ CHÍNH ENDPOINT XÁC THỰC KHÔNG
-      const isAuthEndpoint =
-        original.url?.includes("/auth/login") ||
-        original.url?.includes("/auth/refresh");  
-    // Handle 401 Unauthorized
+    const isAuthEndpoint =
+      original.url?.includes("/auth/login") ||
+      original.url?.includes("/auth/refresh");
+      
     if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       if (refreshing) {
         return new Promise((resolve, reject) => queue.push({ resolve, reject }))
@@ -79,7 +73,6 @@ api.interceptors.response.use(
         console.error("Token refresh failed:", e);
         flushQueue(e, null);
         clearToken();
-        // Redirect to login if refresh fails
         if (typeof window !== 'undefined') {
           window.location.href = "/login";
         }
@@ -89,37 +82,13 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 403 Forbidden
-    if (error.response?.status === 403) {
-      const errorMessage = error.response?.data?.message || "Không có quyền truy cập tài nguyên này";
-      console.error("403 Forbidden:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    // Handle 404 Not Found
-    if (error.response?.status === 404) {
-      const errorMessage = error.response?.data?.message || "Không tìm thấy tài nguyên";
-      console.error("404 Not Found:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    // Handle 500 Server Error
-    if (error.response?.status >= 500) {
-      const errorMessage = error.response?.data?.message || "Lỗi máy chủ, vui lòng thử lại sau";
-      console.error("Server Error:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    // Handle network errors
-    if (!error.response) {
-      const errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
-      console.error("Network Error:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    // Handle other errors
     const errorMessage = error.response?.data?.message || error.message || "Đã xảy ra lỗi không xác định";
-    throw new Error(errorMessage);
+    console.error("API Error:", errorMessage, { 
+      status: error.response?.status, 
+      url: error.config?.url 
+    });
+    // Dòng 81 (lỗi của bạn) là dòng "throw new Error" này
+    throw new Error(errorMessage); 
   }
 );
 
@@ -146,7 +115,7 @@ export const logout = async () => {
 };
 
 // =====================
-// 🔹 CATEGORIES
+// 🔹 CATEGORIES (Client & Admin)
 // =====================
 export const getCategories = () => api.get("/categories");
 export const getCategoryById = (id) => api.get(`/categories/${id}`);
@@ -158,7 +127,7 @@ export const deleteCategory = (id) => api.delete(`/categories/${id}`);
 // 🔹 ORDERS (Client)
 // =====================
 export const createOrder = (data) => api.post("/orders", data);
-export const getOrders = () => api.get("/orders");
+export const getOrders = () => api.get("/orders"); 
 export const getOrderById = (id) => api.get(`/orders/${id}`);
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data);
 export const deleteOrder = (id) => api.delete(`/orders/${id}`);
@@ -167,16 +136,20 @@ export const deleteOrder = (id) => api.delete(`/orders/${id}`);
 // 🔹 ADMIN ORDERS (Admin Dashboard)
 // =====================
 export const getOrdersAdmin = () => api.get("/admin/orders");
+
+// 💡 💡 💡 === SỬA LỖI 500 (THIẾU /status) TẠI ĐÂY === 💡 💡 💡
 export const updateOrderStatus = (id, status) =>
-  api.put(`/admin/orders/${id}`, { trang_thai: status });
+  api.put(`/admin/orders/${id}/status`, { trang_thai: status });
+// 💡 💡 💡 ============================================ 💡 💡 💡
+  
 export const deleteOrderAdmin = (id) => api.delete(`/admin/orders/${id}`);
 
 // =====================
-// 🔹 PRODUCTS (from product.js)
+// 🔹 PRODUCTS (Client & Admin)
 // =====================
 export const getProducts = (params) => api.get("/products", { params });
 export const getProductById = (id) => api.get(`/products/${id}`);
-export const createProduct = (data) => api.post("/products", data);
+export const createProduct = (data) => api.post("/products", data); // (Hàm này đã được thêm lại)
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`);
 
@@ -199,11 +172,8 @@ export const reservations = {
 };
 
 export const tables = {
-  // Public
   list: (params) => api.get("/tables", { params }),
   getById: (id) => api.get(`/tables/${id}`),
-  
-  // Admin
   create: (data) => api.post("/tables", data),
   update: (id, data) => api.put(`/tables/${id}`, data),
   delete: (id) => api.delete(`/tables/${id}`),
@@ -211,12 +181,14 @@ export const tables = {
 };
 
 export const customers = {
-  getAll: () => api.get("/admin/customers"), // Thêm hàm lấy tất cả khách hàng cho admin
+  getAll: () => api.get("/admin/customers"), 
   getMyInfo: () => api.get("/customers/me"),
   update: (data) => api.put("/customers/me", data),
 };
 
-// Loyalty & Voucher
+// =====================
+// 🔹 LOYALTY & VOUCHER (Client)
+// =====================
 export const vouchers = {
   catalog:  () => api.get("/vouchers/catalog"),
   my:       () => api.get("/vouchers/my"),
@@ -224,12 +196,13 @@ export const vouchers = {
   validate: (code, order_total) => api.post("/vouchers/validate", { code, order_total }),
 };
 
-// Points
 export const loyalty = {
   myPoints: () => api.get("/loyalty/me/points"),
 };
 
-// Notifications
+// =====================
+// 🔹 NOTIFICATIONS (Client)
+// =====================
 export const notifications = {
   my:       (unread_only = false) => api.get(`/notifications/my?unread_only=${unread_only ? 1 : 0}`),
   read:     (id) => api.put(`/notifications/${id}/read`),
