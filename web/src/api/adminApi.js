@@ -174,5 +174,18 @@ export const notifications = {
   readAll:  () => adminApi.put("/notifications/read-all"),
 };
 
+export const getAllReviews = (params) => {
+  // Gửi params (như page, limit)
+  return adminApi.get("/admin/reviews", { params });
+};
+
+export const replyToReview = (id_danh_gia, noi_dung) => {
+  return adminApi.post(`/admin/reviews/${id_danh_gia}/reply`, { noi_dung });
+};
+
+export const deleteReview = (id_danh_gia) => {
+  return adminApi.delete(`/admin/reviews/${id_danh_gia}`);
+};
+
 export default adminApi;
 
