@@ -154,6 +154,20 @@ export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`);
 
 // =====================
+// 🔹 REVIEWS (Client & Admin
+// =====================)
+export const getReviewsByProductId = (productId) => 
+  api.get(`/reviews/product/${productId}`);
+export const createReview = (data) => api.post("/reviews", data);
+
+export const likeReviewById = (reviewId) => 
+  api.post(`/reviews/${reviewId}/like`);
+
+export const dislikeReviewById = (reviewId) =>
+  api.post(`/reviews/${reviewId}/dislike`);
+
+
+// =====================
 // 🔹 BOOKINGS, TABLES, CUSTOMERS, RESERVATIONS
 // =====================
 export const bookings = {

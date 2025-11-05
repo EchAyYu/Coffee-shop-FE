@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+// 💡 THÊM: useState
+import { useEffect, useState } from "react"; 
 import { getProducts, getCategories } from "../api/api";
-// 💡 THÊM: Import ProductCard
-import ProductCard from "../components/ProductCard"; 
-// 💡 BỎ: Import 'useCart' vì ProductCard tự xử lý
+import ProductCard from "../components/ProductCard";
+// 💡 THÊM: Import Modal
+import ProductQuickViewModal from "../components/ProductQuickViewModal";
 
 export default function MenuPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCat, setActiveCat] = useState("all");
-  // 💡 BỎ: const { addToCart } = useCart();
+  
+  // 💡 THÊM: State để quản lý sản phẩm đang xem nhanh
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
     getCategories()
@@ -17,7 +20,6 @@ export default function MenuPage() {
 
     getProducts()
       .then((res) => {
-        // 💡 SỬA: Đảm bảo lấy đúng dữ liệu (nếu API trả về có phân trang)
         const productsData = res.data.data?.rows || res.data.data || res.data;
         setProducts(productsData);
       })
@@ -33,6 +35,14 @@ export default function MenuPage() {
             p.categoryId === activeCat ||
             p.category_id === activeCat
         );
+
+  // 💡 THÊM: Hàm để mở/đóng modal
+  const handleOpenQuickView = (product) => {
+    setSelectedProduct(product);
+  };
+  const handleCloseQuickView = () => {
+    setSelectedProduct(null);
+  };
 
   return (
     <div className="py-12 max-w-6xl mx-auto px-4">
@@ -67,13 +77,14 @@ export default function MenuPage() {
         ))}
       </div>
 
-      {/* 💡 ======================================== 💡 */}
-      {/* 💡 ===== NÂNG CẤP LƯỚI SẢN PHẨM ===== 💡 */}
-      {/* 💡 ======================================== 💡 */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filtered.map((p) => (
-          // SỬ DỤNG COMPONENT ProductCard THAY VÌ VIẾT LẠI HTML
-          <ProductCard key={p.id_mon || p._id} p={p} />
+          <ProductCard 
+            key={p.id_mon || p._id} 
+            p={p} 
+            // 💡 THÊM: Truyền hàm xử lý click xuống
+            onQuickViewClick={handleOpenQuickView}
+          />
         ))}
       </div>
 
@@ -81,6 +92,14 @@ export default function MenuPage() {
         <p className="text-center text-neutral-500 mt-8">
           Không có sản phẩm nào để hiển thị.
         </p>
+      )}
+
+      {/* 💡 THÊM: Render Modal nếu có sản phẩm được chọn */}
+      {selectedProduct && (
+        <ProductQuickViewModal 
+          product={selectedProduct} 
+          onClose={handleCloseQuickView} 
+        />
       )}
     </div>
   );
