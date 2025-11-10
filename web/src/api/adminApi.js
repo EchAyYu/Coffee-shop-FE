@@ -187,5 +187,10 @@ export const deleteReview = (id_danh_gia) => {
   return adminApi.delete(`/admin/reviews/${id_danh_gia}`);
 };
 
+// =====================
+// 🔹 ADMIN DASHBOARD (MỚI)
+// =====================
+export const getAdminStats = () => adminApi.get("/admin/stats");
+
 export default adminApi;
 
