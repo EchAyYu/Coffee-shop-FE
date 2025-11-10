@@ -112,8 +112,8 @@ export const deleteCategory = (id) => adminApi.delete(`/categories/${id}`);
 
 export const getProducts = (params) => adminApi.get("/products", { params });
 export const getProductById = (id) => adminApi.get(`/products/${id}`);
-export const createProduct = (formData) => adminApi.post("/products", formData);
-export const updateProduct = (id, formData) => adminApi.put(`/products/${id}`, formData);
+export const createProduct = (data) => adminApi.post("/products", data);
+export const updateProduct = (id, data) => adminApi.put(`/products/${id}`, data);
 export const deleteProduct = (id) => adminApi.delete(`/products/${id}`);
 
 // (Các hàm này cho AdminOrders.jsx)
