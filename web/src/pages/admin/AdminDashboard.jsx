@@ -1,5 +1,5 @@
 // src/pages/admin/AdminDashboard.jsx
-// PHIÊN BẢN NÂNG CẤP V3 (Thêm biểu đồ Khách hàng mới)
+// PHIÊN BẢN V4 (FIX LỖI LAYOUT KPI + TINH CHỈNH GIAO DIỆN)
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -32,6 +32,19 @@ const getLast7DaysLabels = () => {
   }
   return labels;
 };
+const translateStatus = (status) => {
+  const statusMap = {
+    pending: "Chờ xử lý",
+    pending_payment: "Chờ thanh toán",
+    confirmed: "Đã xác nhận",
+    completed: "Hoàn thành",
+    done: "Hoàn thành",
+    paid: "Đã thanh toán",
+    shipped: "Đang giao",
+    cancelled: "Đã hủy",
+  };
+  return statusMap[status?.toLowerCase()] || status; // Trả về tên gốc nếu không khớp
+};
 
 // ===============================
 // 🔹 MAIN COMPONENT
@@ -60,7 +73,45 @@ export default function AdminDashboard() {
 
   // --- Xử lý dữ liệu biểu đồ ---
   
-  // 1. Biểu đồ Doanh thu
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+      },
+      tooltip: {
+        backgroundColor: '#FFF',
+        titleColor: '#333',
+        bodyColor: '#666',
+        borderColor: '#DDD',
+        borderWidth: 1,
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        }
+      },
+      y: {
+        grid: {
+          color: '#EEE',
+        }
+      }
+    }
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: {
+        position: 'bottom',
+      }
+    }
+  };
+  
   const revenueChartData = {
     labels: getLast7DaysLabels(),
     datasets: [
@@ -76,11 +127,11 @@ export default function AdminDashboard() {
         backgroundColor: "rgba(22, 163, 74, 0.1)",
         fill: true,
         tension: 0.3,
+        pointBackgroundColor: '#16A34A',
       },
     ],
   };
   
-  // 2. Biểu đồ Khách hàng mới
   const customerChartData = {
     labels: getLast7DaysLabels(),
     datasets: [
@@ -96,23 +147,18 @@ export default function AdminDashboard() {
         backgroundColor: "rgba(59, 130, 246, 0.1)",
         fill: true,
         tension: 0.3,
+        pointBackgroundColor: '#3B82F6',
       },
     ],
   };
 
-  // 3. Biểu đồ Trạng thái Đơn hàng
   const orderStatusChartData = {
-    labels: stats?.orderStatusDistribution.map(s => s.trang_thai) || [],
+   labels: stats?.orderStatusDistribution.map(s => translateStatus(s.trang_thai)) || [],
     datasets: [
       {
         data: stats?.orderStatusDistribution.map(s => s.count) || [],
         backgroundColor: [
-          "#FBBF24", // yellow (pending)
-          "#3B82F6", // blue (confirmed)
-          "#16A34A", // green (completed/done)
-          "#EF4444", // red (cancelled)
-          "#F97316", // orange (pending_payment)
-          "#A855F7", // purple
+          "#FBBF24", "#3B82F6", "#16A34A", "#EF4444", "#F97316", "#A855F7",
         ],
         hoverOffset: 4,
         borderWidth: 0,
@@ -120,23 +166,22 @@ export default function AdminDashboard() {
     ],
   };
   
-  // Helper định dạng trạng thái
   const formatOrderStatus = (status) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return { text: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-700' };
-      case 'pending_payment': return { text: 'Chờ TT', color: 'bg-orange-100 text-orange-700' };
-      case 'confirmed': return { text: 'Đã xác nhận', color: 'bg-blue-100 text-blue-700' };
+      case 'pending': return { text: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800 border border-yellow-200' };
+      case 'pending_payment': return { text: 'Chờ TT', color: 'bg-orange-100 text-orange-800 border border-orange-200' };
+      case 'confirmed': return { text: 'Đã xác nhận', color: 'bg-blue-100 text-blue-800 border border-blue-200' };
       case 'completed': case 'done': case 'paid': case 'shipped':
-        return { text: 'Hoàn thành', color: 'bg-green-100 text-green-700' };
-      case 'cancelled': return { text: 'Đã hủy', color: 'bg-red-100 text-red-700' };
-      default: return { text: status || 'Không rõ', color: 'bg-gray-100 text-gray-700' };
+        return { text: 'Hoàn thành', color: 'bg-green-100 text-green-800 border border-green-200' };
+      case 'cancelled': return { text: 'Đã hủy', color: 'bg-red-100 text-red-800 border border-red-200' };
+      default: return { text: status || 'Không rõ', color: 'bg-gray-100 text-gray-800 border border-gray-200' };
     }
   };
 
-  // Loading & Error states
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      // 💡 TINH CHỈNH: Loading toàn trang thay vì chỉ 1 góc
+      <div className="flex items-center justify-center h-screen w-full">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <span className="text-gray-600 font-medium">Đang tải dữ liệu thống kê...</span>
@@ -145,11 +190,15 @@ export default function AdminDashboard() {
     );
   }
   if (error) {
-    return <div className="p-4 text-red-600 bg-red-50 rounded border border-red-200">{error}</div>;
+    // 💡 TINH CHỈNH: Căn giữa lỗi
+    return (
+      <div className="flex items-center justify-center h-screen w-full">
+        <div className="p-6 text-red-700 bg-red-50 rounded-lg border border-red-200">{error}</div>
+      </div>
+    );
   }
   if (!stats) return null; 
   
-  // KPI Cards (Thêm "Khách hàng mới hôm nay")
   const kpiCards = [
     { title: "Doanh Thu Hôm Nay", value: formatCurrency(stats.kpiCards.todayRevenue), icon: "💵", color: "text-green-700" },
     { title: "Đơn Hàng Hôm Nay", value: stats.kpiCards.todayOrders, icon: "📦", color: "text-blue-700" },
@@ -161,9 +210,11 @@ export default function AdminDashboard() {
   // 🔹 BẮT ĐẦU RENDER JSX
   // ===============================
   return (
-    <div className="space-y-8 p-6 md:p-8 bg-gray-50 min-h-screen">
+    // 💡 TINH CHỈNH: Bỏ p-6/p-8, để layout tự căn (đã làm ở turn trước)
+    <div className="space-y-6"> 
+      
       {/* Header */}
-      <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+      <h1 className="text-3xl font-bold text-gray-900">
         📊 Bảng điều khiển
       </h1>
 
@@ -172,49 +223,52 @@ export default function AdminDashboard() {
         {kpiCards.map((stat) => (
           <div
             key={stat.title}
-            className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+            // 💡 TINH CHỈNH: Giao diện thẻ nhất quán
+            className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+            <div className="flex items-start justify-between">
+              {/* 💡 SỬA LỖI: Thêm min-w-0 để text không bị tràn */}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-500 mb-1">{stat.title}</p>
+                {/* 💡 SỬA LỖI: Giảm font từ 3xl -> 2xl, thêm truncate */}
+                <p className={`text-2xl font-bold ${stat.color} truncate`}>{stat.value}</p>
               </div>
-              <div className="text-4xl opacity-80">{stat.icon}</div>
+              {/* 💡 TINH CHỈNH: Đổi icon sang cỡ nhỏ hơn, có nền */}
+              <div className="text-2xl opacity-100 p-3 rounded-full bg-gray-100">
+                {stat.icon}
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* 2 Biểu đồ Doanh thu & Khách hàng mới */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Biểu đồ Doanh thu */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Doanh thu 7 ngày qua</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu 7 ngày qua</h2>
           
 
 [Image of a line chart showing revenue trends over the last 7 days]
 
           <div style={{ height: '300px' }}>
-            <Line options={{ responsive: true, maintainAspectRatio: false }} data={revenueChartData} />
+            <Line options={chartOptions} data={revenueChartData} />
           </div>
         </div>
-        {/* Biểu đồ Khách hàng mới */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Khách hàng mới 7 ngày qua</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Khách hàng mới 7 ngày qua</h2>
           
           <div style={{ height: '300px' }}>
-            <Line options={{ responsive: true, maintainAspectRatio: false }} data={customerChartData} />
+            <Line options={chartOptions} data={customerChartData} />
           </div>
         </div>
       </div>
 
-
       {/* Layout 3 cột (Top Sản phẩm, Top Khách hàng, Trạng thái Đơn hàng) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* CỘT 1: SẢN PHẨM BÁN CHẠY (ĐÃ SỬA) */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+        {/* CỘT 1: SẢN PHẨM BÁN CHẠY */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
             <FaBoxOpen className="text-orange-500" /> Top Sản phẩm bán chạy
           </h2>
           {stats.topSellingProducts.length === 0 ? (
@@ -229,10 +283,10 @@ export default function AdminDashboard() {
                     className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate" title={product.Product?.ten_mon}>
+                    <p className="font-semibold text-gray-800 text-sm truncate" title={product.Product?.ten_mon}>
                       {product.Product?.ten_mon || "Sản phẩm không tên"}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-500">
                       Đã bán: <span className="font-bold text-green-600">{product.total_sold}</span>
                     </p>
                   </div>
@@ -242,10 +296,10 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* CỘT 2: TOP KHÁCH HÀNG (MỚI) */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <FaStar className="text-yellow-500" /> Top Khách hàng
+        {/* CỘT 2: TOP KHÁCH HÀNG */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+            <FaStar className="text-yellow-400" /> Top Khách hàng
           </h2>
           {stats.topCustomers.length === 0 ? (
             <p className="text-center py-8 text-gray-500">Chưa có dữ liệu.</p>
@@ -254,15 +308,15 @@ export default function AdminDashboard() {
               {stats.topCustomers.map((customer) => (
                 <div key={customer.id_kh} className="flex items-center gap-4">
                   <img 
-                    src={customer.Customer?.anh || `https://ui-avatars.com/api/?name=${customer.Customer?.ho_ten}&background=random`} 
+                    src={customer.Customer?.anh || `https://ui-avatars.com/api/?name=${customer.Customer?.ho_ten}&background=random&color=fff`} 
                     alt={customer.Customer?.ho_ten}
                     className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate" title={customer.Customer?.ho_ten}>
+                    <p className="font-semibold text-gray-800 text-sm truncate" title={customer.Customer?.ho_ten}>
                       {customer.Customer?.ho_ten || "Khách hàng"}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-500">
                       Chi tiêu: <span className="font-bold text-green-600">{formatCurrency(customer.total_spent)}</span>
                     </p>
                   </div>
@@ -273,29 +327,22 @@ export default function AdminDashboard() {
         </div>
 
         {/* CỘT 3: TRẠNG THÁI ĐƠN HÀNG */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+           <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
              <FaClipboardList className="text-blue-500" /> Trạng thái Đơn hàng
            </h2>
            
            <div className="max-w-xs mx-auto">
-              <Doughnut 
-                data={orderStatusChartData} 
-                options={{ 
-                  responsive: true, 
-                  maintainAspectRatio: true,
-                  plugins: { legend: { position: 'bottom' } }
-                }} 
-              />
+              <Doughnut data={orderStatusChartData} options={doughnutOptions} />
            </div>
         </div>
       </div>
       
       {/* Layout 2 cột (Hoạt động gần đây) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ĐƠN HÀNG GẦN ĐÂY */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">📦 Đơn hàng gần đây</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">📦 Đơn hàng gần đây</h2>
           {stats.recentOrders.length === 0 ? (
             <p className="text-center py-8 text-gray-500">Chưa có đơn hàng nào.</p>
           ) : (
@@ -303,20 +350,20 @@ export default function AdminDashboard() {
               {stats.recentOrders.map((order) => {
                 const statusStyle = formatOrderStatus(order.trang_thai);
                 return (
-                  <Link to={`/admin/orders?view=${order.id_don}`} key={order.id_don} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors group">
+                  <Link to={`/admin/orders?view=${order.id_don}`} key={order.id_don} className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors group">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
+                      <p className="font-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors">
                         #{order.id_don} - {order.ho_ten_nhan || "Khách hàng"}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-gray-500 mt-1">
                         {order.ngay_dat ? new Date(order.ngay_dat).toLocaleString('vi-VN') : "Chưa có ngày"}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusStyle.color}`}>
+                      <span className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${statusStyle.color}`}>
                         {statusStyle.text}
                       </span>
-                      <p className="text-sm font-semibold text-gray-800 mt-1">
+                      <p className="text-sm font-semibold text-gray-900 mt-1">
                         {formatCurrency(order.tong_tien)}
                       </p>
                     </div>
@@ -328,27 +375,27 @@ export default function AdminDashboard() {
         </div>
         
         {/* ĐẶT BÀN CHỜ XỬ LÝ */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">📅 Đặt bàn chờ xử lý</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">📅 Đặt bàn chờ xử lý</h2>
           {stats.recentReservations.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <FaUserFriends className="mx-auto text-4xl text-gray-400 mb-2" />
+              <FaUserFriends className="mx-auto text-4xl text-gray-400 mb-3" />
               Không có đặt bàn nào đang chờ.
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {stats.recentReservations.map((reservation) => (
-                <Link to={`/admin/reservations`} key={reservation.id_datban} className="flex items-center justify-between p-3 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-xl transition-colors group">
+                <Link to={`/admin/reservations`} key={reservation.id_datban} className="flex items-center justify-between p-4 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-lg transition-colors group">
                   <div className="min-w-0">
-                    <p className="font-medium text-yellow-900 text-sm group-hover:text-yellow-700 transition-colors">
+                    <p className="font-semibold text-yellow-900 text-sm group-hover:text-yellow-700 transition-colors">
                       {reservation.ho_ten} ({reservation.so_nguoi} người)
                     </p>
-                    <p className="text-xs text-yellow-700 mt-0.5">
+                    <p className="text-xs text-yellow-800 mt-1">
                       {new Date(reservation.ngay_dat).toLocaleString('vi-VN', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <span className="text-xs font-medium text-yellow-800">
+                    <span className="text-sm font-medium text-yellow-900">
                       {reservation.sdt}
                     </span>
                   </div>

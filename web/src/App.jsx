@@ -1,7 +1,6 @@
-// ===============================
-// ☕ Coffee Shop - App.jsx (Updated for Notifications & Socket Connection)
-// ===============================
-import { Routes, Route, Link, Navigate } from "react-router-dom";
+// src/routes/App.jsx (ĐÃ CẤU TRÚC LẠI)
+
+import { Routes, Route, Link, Navigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -27,12 +26,12 @@ import RedeemVoucherPage from "./pages/RedeemVoucherPage";
 // ---- Admin ----
 import AdminIndex from "./pages/admin";
 
-// 🌟 1. IMPORT NOTIFICATION BELL VÀ SOCKET 🌟
+// ---- Components ----
 import NotificationBell from "./components/NotificationBell";
-import { connectSocket, disconnectSocket } from "./socket.js"; // 💡 THÊM IMPORT NÀY
+import { connectSocket, disconnectSocket } from "./socket.js";
 
 // ===============================
-// 🔹 Top Navigation
+// 1. 🔹 Top Navigation (Giữ nguyên)
 // ===============================
 function TopBar({ user, onCartOpen, onLogout }) {
   return (
@@ -90,103 +89,106 @@ function TopBar({ user, onCartOpen, onLogout }) {
               <button
                 onClick={onLogout}
                 className="px-3 py-2 border rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
-            	>
-            	  Đăng xuất
-          	  </button>
-          	</div>
-          )}
+                >
+                  Đăng xuất
+              </button>
+            </div>
+          )}
+          
+          {user && <NotificationBell />}
 
-        	{/* 🌟 2. THÊM NÚT CHUÔNG VÀO ĐÂY 🌟 */}
-        	{/* Chỉ hiển thị chuông khi đã đăng nhập */}
-        	{user && <NotificationBell />}
-
-        	{/* Giỏ hàng */}
-        	<button
-        	  onClick={onCartOpen}
-        	  className="px-3 py-2 border rounded-xl hover:bg-neutral-50"
-      	>
-        	  🛒
-      	  </button>
-    	</div>
-    </div>
+          <button
+            onClick={onCartOpen}
+            className="px-3 py-2 border rounded-xl hover:bg-neutral-50"
+        >
+            🛒
+        </button>
+        </div>
+    </div>
   </header>
   );
 }
 
 // ===============================
-// 🔸 Wrapper chính của ứng dụng
+// 2. 🔸 Layout cho trang Public (Khách hàng)
 // ===============================
-function MainApp() {
-  const [cartOpen, setCartOpen] = useState(false);
-  const { user, logout } = useAuth();
+function PublicLayout() {
+  const [cartOpen, setCartOpen] = useState(false);
+  const { user, logout } = useAuth();
 
-  // 🌟 3. THÊM LOGIC KẾT NỐI SOCKET VÀO ĐÂY 🌟
-  useEffect(() => {
-    if (user && user.id_tk) {
-      // Nếu có user và user có id_tk, bắt đầu kết nối socket
-      connectSocket(user.id_tk);
-    }
+  // Logic Socket (chỉ cho khách hàng)
+  useEffect(() => {
+    if (user && user.id_tk) {
+      connectSocket(user.id_tk);
+    }
+    return () => {
+      disconnectSocket();
+    };
+  }, [user]);
 
-    // Hàm cleanup: sẽ chạy khi user đăng xuất (user -> null)
-    // hoặc khi component bị unmount
-    return () => {
-      disconnectSocket();
-    };
-  }, [user]); // Dependency array là [user], nó sẽ chạy lại khi user thay đổi
+  return (
+    <CartProvider>
+      <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
+        <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
+        <CartModal open={cartOpen} onClose={() => setCartOpen(false)} user={user} />
+        
+        <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
+          {/* Các trang con của Public sẽ render ở đây */}
+          <Outlet />
+        </main>
 
-  return (
-    <CartProvider>
-      <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
-        <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
-        <CartModal open={cartOpen} onClose={() => setCartOpen(false)} user={user} />
-        
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-
-        <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/menu" element={<MenuPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/career" element={<CareerPage />} />
-            <Route path="/booking" element={<BookingPage />} />
-            <Route path="/customer" element={<CustomerInfoPage user={user} />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-        	  <Route path="/redeem" element={<RedeemVoucherPage />} />
-    	  <Route path="/admin/*" element={<AdminIndex />} />
-    	  <Route path="*" element={<Navigate to="/" replace />} />
-    	</Routes>
-  	</main>
-
-  	<footer className="border-t mt-12">
-  	  <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
-  		  © {new Date().getFullYear()} LO COFFEE — Graduation Project.
-  	  </div>
-  	</footer>
-    </div>
-  </CartProvider>
-  );
+        <footer className="border-t mt-12">
+          <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
+            © {new Date().getFullYear()} LO COFFEE — Graduation Project.
+          </div>
+        </footer>
+      </div>
+    </CartProvider>
+  );
 }
 
 // ===============================
-// 🔹 Gói App với AuthProvider
+// 3. 🔹 Gói App với AuthProvider và Routes
 // ===============================
 export default function App() {
-  return (
-  	<AuthProvider>
-  	  <MainApp />
-  	</AuthProvider>
-  );
-}
+  return (
+    <AuthProvider>
+      {/* 💡 Đưa ToastContainer ra ngoài để cả Admin và Public đều dùng được */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+      
+      {/* 💡 Cấu trúc lại Routes */}
+      <Routes>
+        {/* Tuyến 1: ADMIN - Không có TopBar/Footer */}
+        {/* AdminIndex sẽ tự chứa AdminLayout (sidebar) */}
+        <Route path="/admin/*" element={<AdminIndex />} />
 
+        {/* Tuyến 2: PUBLIC - Có TopBar/Footer */}
+        {/* CartProvider đã được bọc trong PublicLayout */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/menu" element={<MenuPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/career" element={<CareerPage />} />
+          <Route path="/booking" element={<BookingPage />} />
+          {/* CustomerInfoPage có thể tự gọi useAuth() nên không cần truyền prop 'user' */}
+          <Route path="/customer" element={<CustomerInfoPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/redeem" element={<RedeemVoucherPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </AuthProvider>
+  );
+}
