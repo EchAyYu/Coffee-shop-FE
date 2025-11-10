@@ -13,6 +13,7 @@
       { name: "Đặt bàn", path: "/admin/reservations" },
       { name: "Bàn", path: "/admin/tables" },
       { name: "Khách hàng", path: "/admin/customers" },
+      { name: "Voucher", path: "/admin/vouchers" },
     ];
 
     return (

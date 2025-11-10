@@ -157,11 +157,11 @@ export const bookings = {
   update: (id, data) => adminApi.put(`/bookings/${id}`, data),
 };
 
-export const vouchers = {
-  catalog:  () => adminApi.get("/vouchers/catalog"),
-  my:       () => adminApi.get("/vouchers/my"),
-  redeem:   (voucher_id) => adminApi.post("/vouchers/redeem", { voucher_id }),
-  validate: (code, order_total) => adminApi.post("/vouchers/validate", { code, order_total }),
+export const vouchersAdmin = {
+  getAll:   () => adminApi.get("/admin/vouchers"),
+  create:   (data) => adminApi.post("/admin/vouchers", data),
+  update:   (id, data) => adminApi.put(`/admin/vouchers/${id}`, data),
+  delete:   (id) => adminApi.delete(`/admin/vouchers/${id}`),
 };
 
 export const loyalty = {

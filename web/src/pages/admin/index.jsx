@@ -8,8 +8,7 @@ import AdminTables from "./AdminTables";
 import AdminCustomers from "./AdminCustomers";
 import AdminLogin from "./AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
-
-//  ===== 💡 1. IMPORT TRANG ĐÁNH GIÁ MỚI 💡 =====
+import AdminVouchersPage from "./AdminVouchersPage";
 import AdminReviewsPage from "./AdminReviewsPage";
 
 
@@ -34,7 +33,7 @@ export default function AdminIndex() {
           <Route path="reservations" element={<AdminReservations />} />
           <Route path="tables" element={<AdminTables />} />
           <Route path="customers" element={<AdminCustomers />} />
-          
+          <Route path="vouchers" element={<AdminVouchersPage />} />
           {/* Mọi route admin không khớp khác sẽ quay về dashboard */}
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
