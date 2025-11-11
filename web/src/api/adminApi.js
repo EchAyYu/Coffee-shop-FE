@@ -128,8 +128,9 @@ export const deleteOrderAdmin = (id) => adminApi.delete(`/admin/orders/${id}`);
 export const reservations = {
   create: (data) => adminApi.post("/reservations", data),
   my: () => adminApi.get("/reservations/my"),
-  list: () => adminApi.get("/reservations"), // <- AdminReservations dùng cái này
-  update: (id, data) => adminApi.put(`/reservations/${id}`, data), // <- AdminReservations dùng cái này
+  list: () => adminApi.get("/reservations"), 
+  getById: (id) => adminApi.get(`/reservations/${id}`),
+  update: (id, data) => adminApi.put(`/reservations/${id}`, data), 
   delete: (id) => adminApi.delete(`/reservations/${id}`),
 };
 
