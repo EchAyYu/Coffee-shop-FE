@@ -144,11 +144,14 @@ export const tables = {
 };
 
 export const customers = {
-  getAll: (params) => adminApi.get("/admin/customers", { params }), // <- AdminCustomers dùng cái này
+  getAll: (params) => adminApi.get("/admin/customers", { params }), // <- Giữ nguyên
+  getById: (id) => adminApi.get(`/admin/customers/${id}`),          // 💡 THÊM HÀM NÀY
+  delete: (id) => adminApi.delete(`/admin/customers/${id}`),    // 💡 THÊM HÀM NÀY
+  
+  // Các hàm 'getMyInfo' và 'update' này là của người dùng,
+  // chúng ta không dùng cho trang Admin nên cứ để đây.
   getMyInfo: () => adminApi.get("/customers/me"),
   update: (data) => adminApi.put("/customers/me", data),
-  // (Thêm hàm delete nếu bạn cần)
-  // delete: (id) => adminApi.delete(`/admin/customers/${id}`), 
 };
 
 // (Các API khác giữ nguyên)
