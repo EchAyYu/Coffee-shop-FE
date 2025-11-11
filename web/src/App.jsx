@@ -1,10 +1,11 @@
-// src/routes/App.jsx (ĐÃ CẤU TRÚC LẠI)
+// src/routes/App.jsx
 
 import { Routes, Route, Link, Navigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./index.css";
+import Swal from "sweetalert2"; // 💡 THÊM IMPORT NÀY
 
 // ---- Context ----
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -28,12 +29,14 @@ import AdminIndex from "./pages/admin";
 
 // ---- Components ----
 import NotificationBell from "./components/NotificationBell";
-import { connectSocket, disconnectSocket } from "./socket.js";
+// 💡 THÊM 'socket' (instance) VÀO IMPORT
+import { socket, connectSocket, disconnectSocket } from "./socket.js";
 
 // ===============================
 // 1. 🔹 Top Navigation (Giữ nguyên)
 // ===============================
 function TopBar({ user, onCartOpen, onLogout }) {
+  // ... (Code của bạn giữ nguyên, không thay đổi)
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-neutral-200">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -113,82 +116,116 @@ function TopBar({ user, onCartOpen, onLogout }) {
 // 2. 🔸 Layout cho trang Public (Khách hàng)
 // ===============================
 function PublicLayout() {
-  const [cartOpen, setCartOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [cartOpen, setCartOpen] = useState(false);
+  const { user, logout } = useAuth();
 
-  // Logic Socket (chỉ cho khách hàng)
-  useEffect(() => {
-    if (user && user.id_tk) {
-      connectSocket(user.id_tk);
-    }
-    return () => {
-      disconnectSocket();
-    };
-  }, [user]);
+  // 💡💡💡 CẬP NHẬT LOGIC SOCKET TẠI ĐÂY 💡💡💡
+  useEffect(() => {
+    // A. KHI NGƯỜI DÙNG ĐĂNG NHẬP
+    if (user && user.id_tk) {
+      connectSocket(user.id_tk);
 
-  return (
-    <CartProvider>
-      <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
-        <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
-        <CartModal open={cartOpen} onClose={() => setCartOpen(false)} user={user} />
+      socket.on('connect', () => {
+        // 💡💡💡 DÒNG NÀY ĐÃ ĐƯỢC THÊM LẠI 💡💡💡
+        // Gửi 'id_tk' của bạn lên server để join "phòng"
+        socket.emit("join", user.id_tk);
         
-        <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
-          {/* Các trang con của Public sẽ render ở đây */}
-          <Outlet />
-        </main>
+        // Log này của bạn đã chính xác, nhưng giờ nó sẽ là sự thật
+        console.log(`✅ Socket connected! ID: ${socket.id}. Emitted join room: ${user.id_tk}`);
+      });
 
-        <footer className="border-t mt-12">
-          <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
-            © {new Date().getFullYear()} LO COFFEE — Graduation Project.
-          </div>
-        </footer>
-      </div>
-    </CartProvider>
-  );
+      // Lắng nghe thông báo (Giữ nguyên)
+      socket.on('new_notification', (notification) => {
+        console.log('🔔 Thông báo mới:', notification);
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'info',
+          title: notification.title, 
+          text: notification.message,
+          showConfirmButton: false,
+          timer: 5000,
+          timerProgressBar: true,
+        });
+      });
+
+      // Lắng nghe lỗi (Giữ nguyên)
+      socket.on('connect_error', (err) => {
+        console.error('❌ Socket connection error:', err.message);
+      });
+
+    // B. KHI NGƯỜI DÙNG ĐĂNG XUẤT
+    } else {
+      disconnectSocket(); 
+    }
+
+    // C. HÀM DỌN DẸP (Giữ nguyên)
+    return () => {
+      socket.off('connect');
+      socket.off('new_notification');
+      socket.off('connect_error');
+      disconnectSocket();
+    };
+  }, [user]); 
+  // 💡💡💡 KẾT THÚC CẬP NHẬT 💡💡💡
+
+  return (
+    <CartProvider>
+      <div className="min-h-screen flex flex-col bg-[#fdfaf3]">
+        <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
+        <CartModal open={cartOpen} onClose={() => setCartOpen(false)} user={user} />
+        
+        <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-8">
+          <Outlet />
+        </main>
+
+        <footer className="border-t mt-12">
+          <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-neutral-500 text-center">
+            © {new Date().getFullYear()} LO COFFEE — Graduation Project.
+          </div>
+        </footer>
+      </div>
+    </CartProvider>
+  );
 }
 
 // ===============================
 // 3. 🔹 Gói App với AuthProvider và Routes
 // ===============================
 export default function App() {
-  return (
-    <AuthProvider>
-      {/* 💡 Đưa ToastContainer ra ngoài để cả Admin và Public đều dùng được */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-      
-      {/* 💡 Cấu trúc lại Routes */}
-      <Routes>
-        {/* Tuyến 1: ADMIN - Không có TopBar/Footer */}
-        {/* AdminIndex sẽ tự chứa AdminLayout (sidebar) */}
-        <Route path="/admin/*" element={<AdminIndex />} />
+  return (
+    <AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+      
+      <Routes>
+        {/* Tuyến 1: ADMIN */}
+        <Route path="/admin/*" element={<AdminIndex />} />
 
-        {/* Tuyến 2: PUBLIC - Có TopBar/Footer */}
-        {/* CartProvider đã được bọc trong PublicLayout */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/menu" element={<MenuPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/career" element={<CareerPage />} />
-          <Route path="/booking" element={<BookingPage />} />
-          {/* CustomerInfoPage có thể tự gọi useAuth() nên không cần truyền prop 'user' */}
-          <Route path="/customer" element={<CustomerInfoPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/redeem" element={<RedeemVoucherPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </AuthProvider>
-  );
+        {/* Tuyến 2: PUBLIC */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/menu" element={<MenuPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/career" element={<CareerPage />} />
+         <Route path="/booking" element={<BookingPage />} />
+          <Route path="/customer" element={<CustomerInfoPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/redeem" element={<RedeemVoucherPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </AuthProvider>
+  );
 }
