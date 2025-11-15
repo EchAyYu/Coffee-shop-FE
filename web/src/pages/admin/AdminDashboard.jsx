@@ -5,10 +5,15 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAdminStats } from "../../api/adminApi"; 
 import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement,
+  Chart as ChartJS,
+  CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement,
+  Filler, 
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+ChartJS.register(
+  CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend,
+  Filler // 💡 2. THÊM "FILLER" VÀO DANH SÁCH ĐĂNG KÝ
+);
 import { FaUserFriends, FaClipboardList, FaBoxOpen, FaStar } from "react-icons/fa";
 
 // Đăng ký Chart.js

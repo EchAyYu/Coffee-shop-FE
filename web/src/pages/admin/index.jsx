@@ -11,33 +11,42 @@ import AdminProtectedRoute from "./AdminProtectedRoute";
 import AdminVouchersPage from "./AdminVouchersPage";
 import AdminReviewsPage from "./AdminReviewsPage";
 
+// 💡 1. IMPORT CÁC FILE MỚI
+import AdminEmployees from "./AdminEmployees";
+import AdminRoleGuard from "./AdminRoleGuard";
+
 
 export default function AdminIndex() {
-  return (
-    <Routes>
-      {/* 🌟 2. ROUTE ĐĂNG NHẬP 🌟 */}
-      {/* (Trong App.jsx, route là /admin/*, nên path="/" ở đây nghĩa là /admin) */}
-      <Route path="/" element={<AdminLogin />} />
+  return (
+    <Routes>
+      {/* 1. ROUTE ĐĂNG NHẬP (Giữ nguyên) */}
+      <Route path="/" element={<AdminLogin />} />
 
-      {/* 🌟 3. ROUTE ĐƯỢC BẢO VỆ 🌟 */}
-      <Route element={<AdminProtectedRoute />}>
-        {/* Tất cả các route này đều dùng chung AdminLayout */}
-        <Route element={<AdminLayout />}>
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="products" element={<ProductsPage />} />
-          <Route path="orders" element={<AdminOrders />} />
-
-          {/* ===== 💡 2. THÊM ROUTE ĐÁNH GIÁ MỚI VÀO ĐÂY 💡 ===== */}
-          <Route path="reviews" element={<AdminReviewsPage />} />
+      {/* 2. ROUTE ĐƯỢC BẢO VỆ (Kiểm tra Token + Tải User) */}
+      <Route element={<AdminProtectedRoute />}>
+        {/* Tất cả các route này đều dùng chung AdminLayout (Sidebar) */}
+        <Route element={<AdminLayout />}>
           
-          <Route path="reservations" element={<AdminReservations />} />
-          <Route path="tables" element={<AdminTables />} />
-          <Route path="customers" element={<AdminCustomers />} />
-          <Route path="vouchers" element={<AdminVouchersPage />} />
-          {/* Mọi route admin không khớp khác sẽ quay về dashboard */}
-          <Route path="*" element={<Navigate to="dashboard" replace />} />
-        </Route>
-      </Route>
-    </Routes>
-  );
+          {/* 💡 3. ROUTE CHUNG (Admin & Employee) */}
+          <Route path="orders" element={<AdminOrders />} />
+          <Route path="reservations" element={<AdminReservations />} />
+          
+          {/* 💡 4. ROUTE CHỈ ADMIN (Được bảo vệ bằng RoleGuard) */}
+          <Route element={<AdminRoleGuard allowedRoles={['admin']} />}>
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="reviews" element={<AdminReviewsPage />} />
+            <Route path="tables" element={<AdminTables />} />
+            <Route path="customers" element={<AdminCustomers />} />
+            <Route path="vouchers" element={<AdminVouchersPage />} />
+            {/* 💡 5. THÊM ROUTE NHÂN VIÊN MỚI */}
+            <Route path="employees" element={<AdminEmployees />} />
+          </Route>
+
+          {/* Mọi route không khớp sẽ quay về trang mặc định */}
+          <Route path="*" element={<Navigate to="orders" replace />} />
+        </Route>
+      </Route>
+    </Routes>
+  );
 }

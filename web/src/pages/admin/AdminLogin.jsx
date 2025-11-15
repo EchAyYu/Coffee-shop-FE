@@ -1,16 +1,16 @@
 import { useState } from "react";
-// 🌟 1. IMPORT TỪ ADMIN API 🌟
-import { adminLogin, adminMe } from "../../api/adminApi"; 
+// 💡 1. Import hàm và các hằng số
+import { adminLogin, adminMe, clearAdminToken } from "../../api/adminApi"; 
 import { useNavigate, Link } from "react-router-dom";
-// 🌟 2. XÓA BỎ USEAUTH 🌟
-// import { useAuth } from "../../context/AuthContext"; // (Không dùng nữa)
+
+// 💡 2. Định nghĩa key để dùng chung với ProtectedRoute
+const ADMIN_USER_KEY = "admin_user";
 
 export default function AdminLogin() {
   const [form, setForm] = useState({ ten_dn: "", mat_khau: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
-  // const { setUser } = useAuth(); // (Không dùng nữa)
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -18,24 +18,31 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      // 🌟 3. GỌI HÀM LOGIN CỦA ADMIN 🌟
-      // Hàm adminLogin đã tự động gọi setAdminToken() (bên trong adminApi.js)
-      await adminLogin(form);
+      // 💡 3. Sửa lại lời gọi hàm (như đã làm ở bước trước)
+      // Hàm này đã tự lưu Token
+      await adminLogin(form.ten_dn, form.mat_khau);
 
-      // 🌟 4. GỌI HÀM 'ME' CỦA ADMIN 🌟
+      // Lấy thông tin user
       const profile = await adminMe();
       const user = profile?.data?.data || profile?.data?.user;
-      
-      // (Không gọi setUser() của context nữa)
+      
+      if (!user || !user.role) {
+        throw new Error("Không thể lấy thông tin người dùng.");
+      }
 
-      // 🔹 Phân quyền
-      if (user?.role === "admin" || user?.role === "employee") { // Cho phép cả Employee
+      // 💡 4. PHÂN LUỒNG VÀ LƯU TRỮ
+      if (user.role === "admin" || user.role === "employee") {
+        // 💡 5. FIX LỖI: LƯU USER VÀO LOCALSTORAGE
+        // (ProtectedRoute đang tìm key này)
+        localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(user));
+        
+        // 6. Chuyển đến trang dashboard
         nav("/admin/dashboard");
       } else {
-        // Nếu đăng nhập thành công nhưng không phải admin/employee
-        // (ví dụ: lỡ đăng nhập bằng tài khoản khách hàng)
+        // Nếu đăng nhập thành công nhưng là 'customer'
         setError("Bạn không có quyền truy cập trang quản trị.");
-        // (Không cần nav đi đâu cả, chỉ hiển thị lỗi)
+        clearAdminToken(); 
+        localStorage.removeItem(ADMIN_USER_KEY); // Xóa user nếu có
       }
     } catch (err) {
       console.error("Admin Login Error:", err);
@@ -44,6 +51,9 @@ export default function AdminLogin() {
         err?.message ||
         "Đăng nhập thất bại. Vui lòng kiểm tra lại.";
       setError(msg);
+      // 💡 7. Xóa thông tin cũ nếu đăng nhập lỗi
+      clearAdminToken();
+      localStorage.removeItem(ADMIN_USER_KEY);
     } finally {
       setLoading(false);
     }
@@ -74,7 +84,7 @@ export default function AdminLogin() {
                 id="ten_dn"
                 name="ten_dn"
                 type="text"
-                placeholder="Nhập tên đăng nhập admin"
+                placeholder="Nhập tên đăng nhập admin/nhân viên"
                 value={form.ten_dn}
                 onChange={(e) => setForm({ ...form, ten_dn: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -102,7 +112,7 @@ export default function AdminLogin() {
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-                <span className="text-red-500">⚠️</span>
+                 <span className="text-red-500">⚠️</span>
                 {error}
               </div>
             )}
@@ -111,21 +121,21 @@ export default function AdminLogin() {
               type="submit"
               disabled={loading}
               className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg"
-        >
+            >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Đang đăng nhập...
+                t Đang đăng nhập...
                 </div>
               ) : (
-                "Đăng nhập Admin"
+                "Đăng nhập"
               )}
             </button>
           </form>
 
           {/* Footer */}
           <div className="mt-8 text-center">
-            <p className="text-gray-600 text-sm mb-4">
+           <p className="text-gray-600 text-sm mb-4">
               Quay lại trang chủ?
             </p>
             <Link 
@@ -134,7 +144,7 @@ export default function AdminLogin() {
             >
               <span>←</span>
               Trang chủ
-            </Link>
+             </Link>
           </div>
         </div>
       </div>

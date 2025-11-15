@@ -85,8 +85,8 @@ adminApi.interceptors.response.use(
 // =====================
 // 🔹 ADMIN AUTH (Sử dụng adminApi)
 // =====================
-export const adminLogin = async (data) => {
-  const res = await adminApi.post("/auth/login", data);
+export const adminLogin = async (ten_dn, mat_khau) => {
+  const res = await adminApi.post("/auth/login", { ten_dn, mat_khau }); 
   const token = res?.data?.data?.accessToken || res?.data?.accessToken;
   if (token) setAdminToken(token); // Dùng hàm set token của Admin
   return res;
@@ -196,6 +196,19 @@ export const deleteReview = (id_danh_gia) => {
 // 🔹 ADMIN DASHBOARD (MỚI)
 // =====================
 export const getAdminStats = () => adminApi.get("/admin/stats");
+export const employees = {
+  // Lấy danh sách (GET /api/employees)
+  list: () => adminApi.get("/employees"),
+  
+  // Tạo mới (POST /api/employees)
+  create: (data) => adminApi.post("/employees", data),
 
+  // 💡 THÊM 2 HÀM MỚI
+  // Cập nhật (PUT /api/employees/:id)
+  update: (id, data) => adminApi.put(`/employees/${id}`, data),
+
+  // Xóa (DELETE /api/employees/:id)
+  delete: (id) => adminApi.delete(`/employees/${id}`),
+};
 export default adminApi;
 
