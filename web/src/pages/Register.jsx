@@ -1,5 +1,5 @@
 // ================================
-// ☕ LO COFFEE - Register Page (structured address for Cần Thơ)
+// ☕ LO COFFEE - Register Page (Fix UI Width)
 // ================================
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -40,6 +40,7 @@ export default function Register() {
       setError("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
+    // Kiểm tra kỹ hơn structure address
     if (!form.address.district || !form.address.ward || !form.address.street) {
       setError("Vui lòng chọn Quận/Huyện, Phường/Xã và nhập Số nhà, Tên đường");
       return;
@@ -47,7 +48,6 @@ export default function Register() {
 
     setLoading(true);
     try {
-      // Gửi đúng payload BE đang chờ (đã bổ sung structured address)
       await register({
         ten_dn: form.ten_dn,
         mat_khau: form.mat_khau,
@@ -60,7 +60,6 @@ export default function Register() {
         province: form.address.province,
       });
 
-      // Đăng nhập luôn
       await login(form.ten_dn, form.mat_khau);
       navigate("/customer");
     } catch (err) {
@@ -72,8 +71,11 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
-      <div className="max-w-md w-full mx-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50 py-8">
+      {/* FIX: Đổi max-w-md thành max-w-xl để form rộng hơn, 
+          giúp phần địa chỉ không bị vỡ layout 
+      */}
+      <div className="max-w-xl w-full mx-4">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-600 to-orange-600 grid place-items-center text-white font-bold text-2xl mx-auto mb-4">
@@ -112,71 +114,78 @@ export default function Register() {
               />
             </div>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => change("email", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                required
-                disabled={loading}
-                placeholder="Nhập email"
-              />
-            </div>
+            {/* Grid 2 cột cho Email và SĐT để tiết kiệm diện tích dọc */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Email */}
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => change("email", e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                    disabled={loading}
+                    placeholder="Nhập email"
+                />
+                </div>
 
-            {/* Số điện thoại */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
-              <input
-                type="tel"
-                value={form.so_dt}
-                onChange={(e) => change("so_dt", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                required
-                disabled={loading}
-                placeholder="Nhập số điện thoại"
-              />
+                {/* Số điện thoại */}
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
+                <input
+                    type="tel"
+                    value={form.so_dt}
+                    onChange={(e) => change("so_dt", e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                    disabled={loading}
+                    placeholder="Nhập số điện thoại"
+                />
+                </div>
             </div>
 
             {/* Địa chỉ Cần Thơ */}
             <div>
-              <h4 className="font-semibold mb-2">Địa chỉ</h4>
-              <AddressFields
-                value={form.address}
-                onChange={(addr) => change("address", addr)}
-                disabled={loading}
-              />
+              <h4 className="font-semibold mb-2 text-gray-800 border-b pb-1">Địa chỉ liên hệ</h4>
+              <div className="mt-3">
+                 <AddressFields
+                    value={form.address}
+                    onChange={(addr) => change("address", addr)}
+                    disabled={loading}
+                />
+              </div>
             </div>
 
-            {/* Mật khẩu */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
-              <input
-                type="password"
-                value={form.mat_khau}
-                onChange={(e) => change("mat_khau", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                required
-                disabled={loading}
-                minLength={6}
-                placeholder="Ít nhất 6 ký tự"
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Mật khẩu */}
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
+                <input
+                    type="password"
+                    value={form.mat_khau}
+                    onChange={(e) => change("mat_khau", e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                    disabled={loading}
+                    minLength={6}
+                    placeholder="Ít nhất 6 ký tự"
+                />
+                </div>
 
-            {/* Xác nhận mật khẩu */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Xác nhận mật khẩu</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                required
-                disabled={loading}
-                placeholder="Nhập lại mật khẩu"
-              />
+                {/* Xác nhận mật khẩu */}
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Xác nhận mật khẩu</label>
+                <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                    disabled={loading}
+                    placeholder="Nhập lại mật khẩu"
+                />
+                </div>
             </div>
 
             {error && (
@@ -192,9 +201,9 @@ export default function Register() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-red-700 hover:bg-red-800 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="w-full py-3 mt-4 bg-red-700 hover:bg-red-800 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
-              {loading ? "Đang đăng ký..." : "Đăng ký"}
+              {loading ? "Đang đăng ký..." : "Đăng ký tài khoản"}
             </button>
           </form>
 
