@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { tables } from "../api/api"; // Đảm bảo đường dẫn đúng
+import { tables } from "../api/api"; 
 import BookingFormModal from "../components/BookingFormModal";
-import { FaSearch, FaChair, FaMapMarkerAlt, FaInfoCircle } from "react-icons/fa";
+import TableScheduleModal from "../components/TableScheduleModal"; // 💡 Import Modal Lịch
+import { FaSearch, FaChair, FaMapMarkerAlt, FaInfoCircle, FaCalendarAlt } from "react-icons/fa";
 
 export default function BookingPage() {
   const [data, setData] = useState([]);
@@ -10,9 +11,13 @@ export default function BookingPage() {
   const [error, setError] = useState(null);
   const [selectedArea, setSelectedArea] = useState("all");
 
-  // State quản lý Modal
+  // State quản lý Modal Đặt bàn
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
+  
+  // State quản lý Modal Xem Lịch
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [scheduleTable, setScheduleTable] = useState(null);
 
   const areas = [
     { value: "all", label: "Tất cả khu vực" },
@@ -28,16 +33,14 @@ export default function BookingPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedTable(null);
-    loadTables(); // Refresh lại trạng thái bàn sau khi đặt xong
+    loadTables(); // Refresh lại trạng thái bàn
   };
 
   const loadTables = async () => {
     try {
       setLoading(true);
       const params = selectedArea !== "all" ? { khu_vuc: selectedArea } : {};
-      // Gọi API
       const res = await tables.list(params);
-      // Xử lý data trả về (tùy format API của bạn)
       const list = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
       setData(list);
     } catch (err) {
@@ -47,7 +50,7 @@ export default function BookingPage() {
     }
   };
 
-  // Helper: Màu sắc trạng thái (Dark mode supported)
+  // Helper: Màu sắc trạng thái
   const getStatusColor = (status) => {
     switch (status) {
       case "available": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
@@ -76,7 +79,7 @@ export default function BookingPage() {
         title: "Vui lòng đăng nhập",
         text: "Bạn cần đăng nhập để thực hiện đặt bàn.",
         confirmButtonText: "Đăng nhập ngay",
-        confirmButtonColor: "#EA580C", // Orange-600
+        confirmButtonColor: "#EA580C",
       }).then((result) => {
         if (result.isConfirmed) window.location.href = "/login";
       });
@@ -84,6 +87,12 @@ export default function BookingPage() {
     }
     setSelectedTable(table);
     setIsModalOpen(true);
+  };
+
+  // Hàm mở modal xem lịch
+  const handleViewSchedule = (table) => {
+    setScheduleTable(table);
+    setIsScheduleOpen(true);  
   };
 
   return (
@@ -103,7 +112,7 @@ export default function BookingPage() {
         </p>
       </div>
 
-      {/* 2. Filter Section (Pill Style) */}
+      {/* 2. Filter Section */}
       <div className="flex flex-wrap justify-center gap-3 mb-10">
         {areas.map((area) => (
           <button
@@ -124,7 +133,6 @@ export default function BookingPage() {
 
       {/* 3. Table Grid */}
       {loading ? (
-        // Skeleton Loading
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <div key={n} className="h-80 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
@@ -152,7 +160,7 @@ export default function BookingPage() {
                   </span>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                   <h3 className="text-xl font-bold text-white">{table.ten_ban || `Bàn số ${table.so_ban}`}</h3>
+                    <h3 className="text-xl font-bold text-white">{table.ten_ban || `Bàn số ${table.so_ban}`}</h3>
                 </div>
               </div>
 
@@ -175,32 +183,54 @@ export default function BookingPage() {
                   {table.mo_ta || "Vị trí đẹp, không gian thoáng đãng, thích hợp cho nhóm bạn hoặc gia đình."}
                 </p>
 
-                {/* Nút đặt bàn */}
-                <button
-                  disabled={table.trang_thai !== "available"}
-                  onClick={() => handleBookTable(table)}
-                  className={`
-                    w-full py-3 rounded-xl font-bold transition-all duration-300 shadow-md
-                    ${table.trang_thai === "available"
-                      ? "bg-orange-600 text-white hover:bg-orange-700 hover:shadow-orange-600/40"
-                      : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none"
-                    }
-                  `}
-                >
-                  {table.trang_thai === "available" ? "Đặt bàn ngay" : "Tạm thời không khả dụng"}
-                </button>
+                {/* Khu vực nút hành động */}
+                <div className="flex gap-2 mt-auto">
+                  {/* Nút Xem Lịch */}
+                  <button
+                    onClick={() => handleViewSchedule(table)}
+                    className="px-3 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-blue-100 dark:border-blue-800"
+                    title="Xem lịch bận"
+                  >
+                    <FaCalendarAlt className="text-lg" />
+                  </button>
+
+                  {/* Nút Đặt bàn */}
+                  <button
+                    disabled={table.trang_thai !== "available"}
+                    onClick={() => handleBookTable(table)}
+                    className={`
+                      flex-1 py-3 rounded-xl font-bold transition-all duration-300 shadow-md text-sm
+                      ${table.trang_thai === "available"
+                        ? "bg-orange-600 text-white hover:bg-orange-700 hover:shadow-orange-600/40"
+                        : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none"
+                      }
+                    `}
+                  >
+                    {table.trang_thai === "available" ? "Đặt bàn ngay" : "Tạm thời không khả dụng"}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* 4. Modal Form */}
+      {/* 4. Render Modals */}
+      
+      {/* Modal Đặt Bàn */}
       <BookingFormModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         table={selectedTable}
       />
+
+      {/* Modal Xem Lịch (Mới) */}
+      <TableScheduleModal 
+        isOpen={isScheduleOpen}
+        onClose={() => setIsScheduleOpen(false)}
+        table={scheduleTable}
+      />
+
     </div>
   );
 }

@@ -183,6 +183,7 @@ export const reservations = {
   list: () => api.get("/reservations"),
   update: (id, data) => api.put(`/reservations/${id}`, data),
   delete: (id) => api.delete(`/reservations/${id}`),
+  getBusySlots: (id_ban, date) => api.get(`/reservations/busy-slots?id_ban=${id_ban}&date=${date}`),
 };
 
 export const tables = {
