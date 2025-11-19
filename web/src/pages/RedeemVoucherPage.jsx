@@ -1,198 +1,210 @@
-// src/pages/RedeemVoucherPage.jsx
-
 import { useEffect, useState } from "react";
 import { vouchers } from "../api/api";
 import { useAuth } from "../context/AuthContext";
-import { FaTicketAlt } from "react-icons/fa"; // Thêm icon
+import { FaTicketAlt, FaGift, FaCoins } from "react-icons/fa";
+
+// Helper định dạng tiền
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
 export default function RedeemVoucherPage() {
-  const [catalogList, setCatalogList] = useState([]); // Danh sách để đổi
-  const [myVoucherList, setMyVoucherList] = useState([]); // Danh sách đã sở hữu
-  
+  const [catalogList, setCatalogList] = useState([]);
+  const [myVoucherList, setMyVoucherList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [redeemingId, setRedeemingId] = useState(null);
-  
-  // 💡 Thêm state cho Tab
-  const [activeTab, setActiveTab] = useState("redeem"); // 'redeem' | 'my'
+  const [activeTab, setActiveTab] = useState("redeem");
 
   const { points, setPoints } = useAuth();
 
-  // 💡 Hàm tải TẤT CẢ dữ liệu
   const fetchData = () => {
     setLoading(true);
     setError("");
     Promise.all([
-      vouchers.catalog(), // API (1): Lấy danh sách đổi
-      vouchers.my(),      // API (2): Lấy voucher của tôi
+      vouchers.catalog(),
+      vouchers.my(),
     ])
-    .then(([catalogRes, myVouchersRes]) => {
-      // Lọc voucher có phí điểm
-      const redeemableVouchers = (catalogRes.data.data || []).filter(
-        (v) => v.points_cost > 0
-      );
-      setCatalogList(redeemableVouchers);
-      
-      // Set voucher của tôi
-      setMyVoucherList(myVouchersRes.data.data || []);
-    })
-    .catch((err) => {
-      console.error("Lỗi tải dữ liệu voucher:", err);
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
-    })
-    .finally(() => {
-      setLoading(false);
-    });
+      .then(([catalogRes, myVouchersRes]) => {
+        const redeemableVouchers = (catalogRes.data.data || []).filter(
+          (v) => v.points_cost > 0
+        );
+        setCatalogList(redeemableVouchers);
+        setMyVoucherList(myVouchersRes.data.data || []);
+      })
+      .catch((err) => {
+        console.error("Lỗi tải voucher:", err);
+        setError("Không thể tải dữ liệu. Vui lòng thử lại.");
+      })
+      .finally(() => setLoading(false));
   };
 
-  // Tải dữ liệu khi mount
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Hàm xử lý khi nhấn nút "Đổi"
   const handleRedeem = async (voucher) => {
     if (points < voucher.points_cost) {
       alert("Bạn không đủ điểm để đổi vật phẩm này.");
       return;
     }
-    if (!window.confirm(`Bạn có chắc muốn dùng ${voucher.points_cost} điểm để đổi "${voucher.name}" không?`)) {
+    if (!window.confirm(`Xác nhận dùng ${voucher.points_cost} điểm để đổi "${voucher.name}"?`)) {
       return;
     }
 
     setRedeemingId(voucher.id);
-    setError(""); 
+    setError("");
 
     try {
       const res = await vouchers.redeem(voucher.id);
-      
       const newPoints = res.data?.data?.newPoints;
       if (typeof newPoints === 'number') {
-        setPoints(newPoints); // Cập nhật điểm
+        setPoints(newPoints);
       }
       
-      alert("Đổi voucher thành công!");
-      
-      // 💡 Tải lại cả 2 danh sách
-      fetchData(); 
-      setActiveTab('my'); // Chuyển sang tab "Voucher của tôi"
+      alert("🎉 Đổi voucher thành công!");
+      fetchData();
+      setActiveTab('my');
       
     } catch (err) {
-      console.error("Lỗi khi đổi voucher:", err);
-      alert(`Đổi thất bại: ${err.message || "Có lỗi xảy ra (có thể đã hết số lượng)."}`);
+      alert(`Đổi thất bại: ${err.message || "Có lỗi xảy ra."}`);
     } finally {
       setRedeemingId(null);
     }
   };
 
-  // --- Render components ---
-  if (loading && myVoucherList.length === 0 && catalogList.length === 0) {
-    return (
-      <div className="text-center py-20 text-gray-600">
-        <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        Đang tải...
-      </div>
-    );
-  }
-
-  if (error) {
-    return <p className="text-center text-red-600 mt-8 py-20">{error}</p>;
-  }
-
+  // --- Render ---
   return (
-    <div className="py-12 max-w-6xl mx-auto px-4">
-      <h2 className="text-3xl font-semibold text-center text-red-700 mb-4">
-        Voucher & Đổi Thưởng
-      </h2>
-      <p className="text-center text-gray-700 mb-8 text-xl font-medium">
-        Điểm hiện tại của bạn: <span className="text-orange-600 font-bold">{points}</span>
-      </p>
+    <div className="py-12 max-w-6xl mx-auto px-4 min-h-screen">
+      
+      {/* 1. Header */}
+      <div className="text-center mb-10 animate-fade-in-up">
+        <span className="text-orange-600 font-bold tracking-wider uppercase text-sm bg-orange-100 dark:bg-orange-900/30 px-3 py-1 rounded-full">
+          Thành viên thân thiết
+        </span>
+        <h2 className="text-4xl font-extrabold mt-3 mb-4 text-gray-800 dark:text-white">
+          Voucher & Quà tặng
+        </h2>
+        <div className="inline-flex items-center gap-2 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-2xl shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 grid place-items-center">
+            <FaCoins />
+          </div>
+          <div className="text-left">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Điểm tích lũy</p>
+            <p className="text-xl font-bold text-orange-600 dark:text-orange-500">{points}</p>
+          </div>
+        </div>
+      </div>
 
-      {/* 💡 THANH TABS */}
-      <div className="flex justify-center border-b border-gray-200 mb-8">
+      {/* 2. Tabs (Pill Style) */}
+      <div className="flex justify-center gap-4 mb-10">
         <button
           onClick={() => setActiveTab('redeem')}
-          className={`px-6 py-3 text-lg font-medium ${
+          className={`px-6 py-3 rounded-full font-bold transition-all ${
             activeTab === 'redeem'
-              ? 'border-b-2 border-red-600 text-red-600'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
-          Đổi Thưởng
+          🎁 Đổi Thưởng
         </button>
         <button
           onClick={() => setActiveTab('my')}
-          className={`px-6 py-3 text-lg font-medium ${
+          className={`px-6 py-3 rounded-full font-bold transition-all ${
             activeTab === 'my'
-              ? 'border-b-2 border-red-600 text-red-600'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
-          Voucher Của Tôi ({myVoucherList.length})
+          🎟️ Voucher Của Tôi ({myVoucherList.length})
         </button>
       </div>
 
-      {/* 💡 NỘI DUNG TAB ĐỔI THƯỞNG */}
-      {activeTab === 'redeem' && (
+      {/* 3. Loading & Error */}
+      {loading && (
+        <div className="grid md:grid-cols-3 gap-6">
+          {[1, 2, 3].map(n => (
+            <div key={n} className="h-64 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+          ))}
+        </div>
+      )}
+      {error && <div className="text-center text-red-500 bg-red-50 p-4 rounded-lg">{error}</div>}
+
+      {/* 4. Content - Tab Đổi Thưởng */}
+      {activeTab === 'redeem' && !loading && (
         <>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {catalogList.map((v) => {
               const canRedeem = points >= v.points_cost;
-              const isLoading = redeemingId === v.id;
+              const isLoadingItem = redeemingId === v.id;
               
               return (
-                <div key={v.id} /* ... (Card đổi thưởng như cũ) ... */ >
-                  {/* ... (Giữ nguyên code card đổi thưởng của bạn) ... */}
-                   <div
-                    key={v.id}
-                    className={`border rounded-2xl overflow-hidden bg-white shadow-sm transition ${!canRedeem ? 'opacity-70 bg-gray-50' : 'hover:shadow-md'}`}
-                  >
-                    <div className="w-full h-40 bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center">
-                      <span className="text-white text-6xl opacity-80">🎁</span>
-                    </div>
-                    <div className="p-4 text-center">
-                      <h3 className="font-semibold text-lg text-gray-900">{v.name}</h3>
-                      <p className="text-sm text-gray-600 h-10 my-2">{v.description || "Voucher giảm giá"}</p>
-                      <p className="text-red-700 font-bold text-xl mt-2">
-                        {v.points_cost} điểm
-                      </p>
-                       {/* 💡 Hiển thị số lượng còn lại */}
-                       {v.total_quantity !== null && (
-                        <p className="text-xs text-gray-500 mt-1">
+                <div 
+                  key={v.id} 
+                  className={`group bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col ${!canRedeem ? 'opacity-70' : ''}`}
+                >
+                  {/* Header ảnh */}
+                  <div className="h-32 bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center relative overflow-hidden">
+                    <FaGift className="text-white/30 text-8xl absolute -bottom-4 -right-4 transform rotate-12 group-hover:scale-110 transition-transform duration-500" />
+                    <FaGift className="text-white text-4xl relative z-10 drop-shadow-md" />
+                  </div>
+                  
+                  {/* Body */}
+                  <div className="p-5 flex-1 flex flex-col text-center">
+                    <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2 line-clamp-1">{v.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 flex-1">
+                      {v.description || "Voucher ưu đãi đặc biệt dành cho thành viên."}
+                    </p>
+                    
+                    <div className="mt-auto">
+                      <div className="flex justify-center items-center gap-1 text-orange-600 dark:text-orange-500 font-bold text-xl mb-4">
+                        <FaCoins className="text-yellow-500" />
+                        {v.points_cost}
+                      </div>
+
+                      <button
+                        onClick={() => handleRedeem(v)}
+                        disabled={!canRedeem || isLoadingItem}
+                        className={`
+                          w-full py-2.5 rounded-xl font-bold transition-all shadow-md
+                          ${isLoadingItem ? 'bg-gray-400' : ''} 
+                          ${!isLoadingItem && canRedeem ? 'bg-orange-600 text-white hover:bg-orange-700 hover:shadow-orange-600/40' : ''} 
+                          ${!isLoadingItem && !canRedeem ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed shadow-none' : ''}
+                        `}
+                      >
+                        {isLoadingItem ? "Đang xử lý..." : (canRedeem ? "Đổi ngay" : "Thiếu điểm")}
+                      </button>
+                      
+                      {v.total_quantity !== null && (
+                        <p className="text-xs text-gray-400 mt-2">
                           Còn lại: {v.total_quantity - v.redeemed_count}
                         </p>
                       )}
-                      <button
-                        onClick={() => handleRedeem(v)}
-                        disabled={!canRedeem || isLoading}
-                        className={`mt-4 px-4 py-2 w-full text-white rounded-full font-semibold transition-all ${isLoading ? 'bg-gray-400' : ''} ${!isLoading && canRedeem ? 'bg-amber-600 hover:bg-amber-700' : ''} ${!isLoading && !canRedeem ? 'bg-gray-400 cursor-not-allowed' : ''}`}
-                      >
-                        {isLoading ? "Đang xử lý..." : (canRedeem ? "Đổi ngay" : "Không đủ điểm")}
-                      </button>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-          {catalogList.length === 0 && !loading && (
-            <p className="text-center text-neutral-500 mt-8 py-20">
-              Hiện chưa có vật phẩm nào để đổi.
-            </p>
+          {catalogList.length === 0 && (
+             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+               <FaGift className="mx-auto text-4xl mb-3 opacity-30"/>
+               Hiện chưa có vật phẩm nào để đổi.
+             </div>
           )}
         </>
       )}
-      
-      {/* 💡 NỘI DUNG TAB VOUCHER CỦA TÔI */}
-      {activeTab === 'my' && (
-        <div className="space-y-4">
+
+      {/* 5. Content - Tab Voucher Của Tôi */}
+      {activeTab === 'my' && !loading && (
+        <div className="space-y-4 max-w-3xl mx-auto">
           {myVoucherList.map((r) => (
             <MyVoucherCard key={r.id} redemption={r} />
           ))}
-          {myVoucherList.length === 0 && !loading && (
-            <p className="text-center text-neutral-500 mt-8 py-20">
-              Bạn chưa có voucher nào.
-            </p>
+          {myVoucherList.length === 0 && (
+             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+               <FaTicketAlt className="mx-auto text-4xl mb-3 opacity-30"/>
+               Bạn chưa có voucher nào. Hãy tích điểm đổi quà nhé!
+             </div>
           )}
         </div>
       )}
@@ -200,7 +212,7 @@ export default function RedeemVoucherPage() {
   );
 }
 
-// 💡 Component Card Voucher Của Tôi
+// --- Component Card Voucher Của Tôi (Đã nâng cấp) ---
 function MyVoucherCard({ redemption }) {
   const { Voucher: v, code, status, expires_at } = redemption;
   
@@ -208,40 +220,52 @@ function MyVoucherCard({ redemption }) {
   const isUsed = status === 'used';
   const isActive = status === 'active' && !isExpired;
 
-  let statusText = "Khả dụng";
-  let statusColor = "text-green-600 bg-green-100";
+  let statusInfo = { text: "Khả dụng", bg: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" };
   if (isUsed) {
-    statusText = "Đã sử dụng";
-    statusColor = "text-gray-600 bg-gray-100";
+    statusInfo = { text: "Đã dùng", bg: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" };
   } else if (isExpired) {
-    statusText = "Đã hết hạn";
-    statusColor = "text-red-600 bg-red-100";
+    statusInfo = { text: "Hết hạn", bg: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" };
   }
 
-  if (!v) return null; // Trường hợp voucher gốc đã bị xóa
+  if (!v) return null;
 
   const discountText = v.discount_type === 'fixed'
-    ? `Giảm ${Number(v.discount_value).toLocaleString('vi-VN')}đ`
+    ? `Giảm ${formatCurrency(v.discount_value)}`
     : `Giảm ${v.discount_value}%`;
 
   return (
-    <div className={`flex flex-col md:flex-row rounded-lg bg-white shadow-sm border ${isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
-      <div className="flex-shrink-0 flex items-center justify-center p-6 md:w-48 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-t-lg md:rounded-l-lg md:rounded-r-none">
-        <FaTicketAlt className="text-white text-6xl" />
+    <div className={`group relative flex flex-col md:flex-row rounded-2xl bg-white dark:bg-[#1E1E1E] shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-800 overflow-hidden ${!isActive ? 'opacity-60 grayscale' : ''}`}>
+      
+      {/* Phần trái: Icon vé */}
+      <div className="md:w-32 bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center relative overflow-hidden p-6">
+        <div className="absolute w-3 h-3 bg-[#fdfaf3] dark:bg-[#0a0a0a] rounded-full -top-1.5 -right-1.5"></div>
+        <div className="absolute w-3 h-3 bg-[#fdfaf3] dark:bg-[#0a0a0a] rounded-full -bottom-1.5 -right-1.5"></div>
+        <FaTicketAlt className="text-white text-4xl drop-shadow-md transform group-hover:rotate-12 transition-transform" />
       </div>
-      <div className="flex-grow p-5">
-        <h3 className="text-xl font-semibold text-gray-900">{v.name}</h3>
-        <p className="text-gray-600 mt-1">{discountText} {v.max_discount ? `(tối đa ${Number(v.max_discount).toLocaleString('vi-VN')}đ)` : ''}</p>
-        <p className="text-sm text-gray-500 mt-1">Đơn tối thiểu: {Number(v.min_order).toLocaleString('vi-VN')}đ</p>
-        <p className="text-sm text-gray-500">HSD: {expires_at ? new Date(expires_at).toLocaleDateString('vi-VN') : 'Vĩnh viễn'}</p>
+
+      {/* Phần giữa: Thông tin */}
+      <div className="flex-1 p-5 border-r border-gray-100 dark:border-gray-700 border-dashed relative">
+        <div className="absolute w-3 h-3 bg-[#fdfaf3] dark:bg-[#0a0a0a] rounded-full -top-1.5 -left-1.5 md:block hidden"></div>
+        <div className="absolute w-3 h-3 bg-[#fdfaf3] dark:bg-[#0a0a0a] rounded-full -bottom-1.5 -left-1.5 md:block hidden"></div>
+        
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{v.name}</h3>
+        <p className="text-orange-600 font-medium mt-1">{discountText} {v.max_discount ? `(tối đa ${formatCurrency(v.max_discount)})` : ''}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          • Đơn tối thiểu: {formatCurrency(v.min_order)} <br/>
+          • HSD: {expires_at ? new Date(expires_at).toLocaleDateString('vi-VN') : 'Vĩnh viễn'}
+        </p>
       </div>
-      <div className="flex-shrink-0 flex flex-col items-center justify-center p-5 border-t md:border-t-0 md:border-l border-gray-100 md:w-64">
-        <p className="text-sm text-gray-600 mb-2">Mã của bạn:</p>
-        <div className="px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-center">
-          <span className="font-bold text-lg text-indigo-700 tracking-wider">{code}</span>
+
+      {/* Phần phải: Code */}
+      <div className="md:w-48 p-5 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Mã voucher</p>
+        <div className="px-4 py-1.5 bg-white dark:bg-gray-900 border-2 border-dashed border-orange-300 dark:border-orange-800 rounded-lg w-full text-center mb-3">
+          <span className="font-mono font-bold text-lg text-gray-800 dark:text-orange-500 tracking-widest select-all cursor-pointer" title="Nhấn để copy">
+            {code}
+          </span>
         </div>
-        <span className={`mt-3 px-3 py-1 text-xs font-medium rounded-full ${statusColor}`}>
-          {statusText}
+        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${statusInfo.bg}`}>
+          {statusInfo.text}
         </span>
       </div>
     </div>
