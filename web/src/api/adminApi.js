@@ -210,5 +210,24 @@ export const employees = {
   // Xóa (DELETE /api/employees/:id)
   delete: (id) => adminApi.delete(`/employees/${id}`),
 };
+
+// =====================
+// 🔹 UPLOAD IMAGE (DÙNG CHUNG CHO ADMIN
+// =====================)
+export const uploadImage = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // Gọi route upload chúng ta vừa viết ở Backend
+  // Lưu ý: Route bên Backend là /api/uploads/image (tùy vào cách bạn khai báo trong app.js)
+  // Nếu bạn khai báo app.use('/uploads', uploadRouter) thì url là /uploads/image
+  const res = await adminApi.post("/uploads/image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    timeout: 60000,
+  });
+  return res.data; // Trả về { success: true, url: "..." }
+};
 export default adminApi;
 

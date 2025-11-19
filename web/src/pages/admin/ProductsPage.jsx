@@ -1,35 +1,31 @@
 // src/pages/admin/ProductsPage.jsx
-// (V6 - Đã thêm Bộ lọc và Tìm kiếm)
-
 import { useEffect, useState } from "react";
-import { 
-  getProducts, 
-  createProduct, 
-  updateProduct, 
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
   deleteProduct,
   getCategories,
   createCategory,
   updateCategory,
-  deleteCategory 
-} from "../../api/adminApi"; 
+  deleteCategory,
+  uploadImage, // ✅ Import hàm upload
+} from "../../api/adminApi";
 import { FaTrashAlt, FaPencilAlt, FaTimes } from "react-icons/fa";
 
-// 💡 1. IMPORT HOOK ĐỂ DÙNG DEBOUNCE
-import useDebounce from "../../hooks/useDebounce"; // (Chúng ta sẽ tạo file này ở bước 3)
+// Import hook debounce (như code cũ của bạn)
+import useDebounce from "../../hooks/useDebounce";
 
 // Helper định dạng tiền
 const formatCurrency = (value) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-    value
-  );
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
 // ===============================
-// 🔹 MODAL QUẢN LÝ DANH MỤC (Giữ nguyên)
+// 🔹 MODAL QUẢN LÝ DANH MỤC
 // ===============================
 function CategoryManagerModal({ onClose, categories, refreshCategories }) {
-  // ... (Toàn bộ code của Modal giữ nguyên như cũ) ...
   const [name, setName] = useState("");
-  const [editingCategory, setEditingCategory] = useState(null); 
+  const [editingCategory, setEditingCategory] = useState(null);
 
   useEffect(() => {
     if (editingCategory) setName(editingCategory.ten_dm);
@@ -47,7 +43,7 @@ function CategoryManagerModal({ onClose, categories, refreshCategories }) {
       }
       setName("");
       setEditingCategory(null);
-      refreshCategories(); 
+      refreshCategories();
     } catch (err) {
       alert(`Lỗi: ${err.message}`);
     }
@@ -117,7 +113,6 @@ function CategoryManagerModal({ onClose, categories, refreshCategories }) {
   );
 }
 
-
 // ===============================
 // 🔹 COMPONENT TRANG SẢN PHẨM CHÍNH
 // ===============================
@@ -126,31 +121,28 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-  const [form, setForm] = useState({ 
-    ten_mon:"", gia:"", id_dm:"", anh: "", mo_ta: "", trang_thai: true,
+  // State cho form và xử lý ảnh
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [form, setForm] = useState({
+    ten_mon: "", gia: "", id_dm: "", anh: "", mo_ta: "", trang_thai: true,
   });
 
-  // 💡 2. STATE MỚI CHO BỘ LỌC
-  const [filters, setFilters] = useState({
-    q: "",
-    id_dm: "",
-    trang_thai: "",
-  });
-  // 💡 3. STATE ĐỂ "TRÌ HOÃN" LỆNH GỌI API KHI TÌM KIẾM
-  const debouncedSearchTerm = useDebounce(filters.q, 500); // 500ms delay
+  // State bộ lọc
+  const [filters, setFilters] = useState({ q: "", id_dm: "", trang_thai: "" });
+  const debouncedSearchTerm = useDebounce(filters.q, 500);
 
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  // 💡 4. TẢI DỮ LIỆU (SẢN PHẨM + DANH MỤC)
-  // Tải danh mục CHỈ MỘT LẦN
+  // 1. Tải Danh mục
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const categoriesRes = await getCategories();
-        const categoryList = Array.isArray(categoriesRes.data?.data) ? categoriesRes.data.data : Array.isArray(categoriesRes.data) ? categoriesRes.data : [];
-        setCategories(categoryList);
+        const res = await getCategories();
+        const list = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+        setCategories(list);
       } catch (error) {
         console.error("Lỗi tải danh mục:", error);
       }
@@ -158,80 +150,87 @@ export default function ProductsPage() {
     loadCategories();
   }, []);
 
-  // 💡 5. TẢI LẠI SẢN PHẨM MỖI KHI BỘ LỌC THAY ĐỔI
-  useEffect(() => {
-    const loadProducts = async () => {
-      setLoading(true);
-      try {
-        // Tạo object params sạch, loại bỏ các key rỗng
-        const params = {
-          q: debouncedSearchTerm, // Dùng giá trị đã "trì hoãn"
-          category: filters.id_dm,
-          status: filters.trang_thai,
-        };
-        // Xóa key rỗng
-        Object.keys(params).forEach(key => {
-          if (params[key] === "") delete params[key];
-        });
+  // 2. Tải Sản phẩm (theo bộ lọc)
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const params = {
+        q: debouncedSearchTerm,
+        category: filters.id_dm,
+        status: filters.trang_thai,
+      };
+      Object.keys(params).forEach((key) => { if (params[key] === "") delete params[key]; });
 
-        // Gọi API với params
-        const productsRes = await getProducts(params);
-        
-        const productList = Array.isArray(productsRes.data?.data) ? productsRes.data.data : Array.isArray(productsRes.data) ? productsRes.data : [];
-        setItems(productList);
-        
-      } catch (error) {
-        console.error("Lỗi tải sản phẩm:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadProducts();
-  }, [debouncedSearchTerm, filters.id_dm, filters.trang_thai]); // Chạy lại khi các filter này thay đổi
-
-  // 💡 6. HÀM CẬP NHẬT STATE BỘ LỌC
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+      const res = await getProducts(params);
+      const list = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+      setItems(list);
+    } catch (error) {
+      console.error("Lỗi tải sản phẩm:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Hàm tải lại danh mục (cho modal)
-  async function refreshCategories() {
-    // ... (Giữ nguyên)
+  useEffect(() => {
+    loadProducts();
+  }, [debouncedSearchTerm, filters.id_dm, filters.trang_thai]);
+
+  // Hàm refresh danh mục cho Modal
+  const refreshCategories = async () => {
     try {
       const res = await getCategories();
-      const categoryList = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
-      setCategories(categoryList);
+      const list = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+      setCategories(list);
     } catch (error) { console.error("Lỗi tải lại danh mục:", error); }
-  }
+  };
 
-  // Hàm Submit (Gửi JSON)
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // 💡 HÀM XỬ LÝ CHỌN FILE
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file)); // Preview ngay lập tức
+    }
+  };
+
+  // 💡 HÀM SUBMIT (CÓ UPLOAD)
   async function onSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    
-    const submissionData = {
-      ...form,
-      gia: Number(form.gia),
-      id_dm: Number(form.id_dm),
-      trang_thai: Boolean(form.trang_thai),
-    };
 
     try {
+      let imageUrl = form.anh; // Mặc định dùng link ảnh cũ (nếu có)
+
+      // Nếu user chọn file mới -> Upload lên Cloudinary
+      if (selectedFile) {
+        const uploadRes = await uploadImage(selectedFile);
+        if (uploadRes && uploadRes.url) {
+          imageUrl = uploadRes.url;
+        }
+      }
+
+      const submissionData = {
+        ...form,
+        gia: Number(form.gia),
+        id_dm: Number(form.id_dm),
+        trang_thai: Boolean(form.trang_thai),
+        anh: imageUrl, // Gán link ảnh (cũ hoặc mới)
+      };
+
       const id = editing?.id ?? editing?.id_mon;
       if (editing) {
         await updateProduct(id, submissionData);
       } else {
         await createProduct(submissionData);
       }
+
       handleCancel();
-      // Tải lại sản phẩm với bộ lọc hiện tại
-      const params = { q: debouncedSearchTerm, category: filters.id_dm, status: filters.trang_thai };
-      Object.keys(params).forEach(key => { if (params[key] === "") delete params[key]; });
-      const productsRes = await getProducts(params);
-      const productList = Array.isArray(productsRes.data?.data) ? productsRes.data.data : Array.isArray(productsRes.data) ? productsRes.data : [];
-      setItems(productList);
+      loadProducts(); // Tải lại danh sách
     } catch (error) {
       console.error("Lỗi lưu sản phẩm:", error);
       alert(`Lỗi: ${error.message || "Không thể lưu sản phẩm"}`);
@@ -240,52 +239,52 @@ export default function ProductsPage() {
     }
   }
 
-  // ... (Hàm handleDelete, handleEdit, handleCancel, getCategoryName giữ nguyên)
-   async function handleDelete(id) {
-    if (!confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) return;
-    setLoading(true);
-    try {
-      await deleteProduct(id);
-      // Tải lại
-      const params = { q: debouncedSearchTerm, category: filters.id_dm, status: filters.trang_thai };
-      Object.keys(params).forEach(key => { if (params[key] === "") delete params[key]; });
-      const productsRes = await getProducts(params);
-      const productList = Array.isArray(productsRes.data?.data) ? productsRes.data.data : Array.isArray(productsRes.data) ? productsRes.data : [];
-      setItems(productList);
-    } catch (error) {
-      console.error("Error deleting product:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
   const handleEdit = (product) => {
     setEditing(product);
     setForm({
       ten_mon: product.ten_mon ?? "",
       gia: product.gia ?? "",
-      id_dm: product.id_dm ?? "", 
-      anh: product.anh ?? "", 
+      id_dm: product.id_dm ?? "",
+      anh: product.anh ?? "",
       mo_ta: product.mo_ta ?? "",
       trang_thai: product.trang_thai ?? true,
     });
+    setSelectedFile(null);
+    setPreviewUrl(product.anh || ""); // Hiện ảnh cũ
     setShowForm(true);
     window.scrollTo(0, 0);
   };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) return;
+    setLoading(true);
+    try {
+      await deleteProduct(id);
+      loadProducts();
+    } catch (error) {
+      console.error("Lỗi xóa sản phẩm:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCancel = () => {
     setEditing(null);
-    setForm({ ten_mon:"", gia:"", id_dm:"", anh: "", mo_ta: "", trang_thai: true, });
+    setForm({ ten_mon: "", gia: "", id_dm: "", anh: "", mo_ta: "", trang_thai: true });
+    setSelectedFile(null);
+    setPreviewUrl("");
     setShowForm(false);
   };
+
   const getCategoryName = (id_dm) => {
-    return categories.find(c => c.id_dm === id_dm)?.ten_dm || `ID: ${id_dm}`;
+    return categories.find((c) => c.id_dm === id_dm)?.ten_dm || `ID: ${id_dm}`;
   };
-  // ...
 
   return (
     <div className="space-y-6">
       {/* Modal Quản lý Danh mục */}
       {showCategoryModal && (
-        <CategoryManagerModal 
+        <CategoryManagerModal
           onClose={() => setShowCategoryModal(false)}
           categories={categories}
           refreshCategories={refreshCategories}
@@ -299,67 +298,92 @@ export default function ProductsPage() {
           <p className="text-gray-600">Thêm, sửa và quản lý các sản phẩm trong cửa hàng</p>
         </div>
         <div className="flex items-center gap-4">
-          {/* 💡 7. SỬA LẠI SỐ LƯỢNG SẢN PHẨM (theo bộ lọc) */}
           <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold">
             {items.length} sản phẩm
           </div>
           <button
             onClick={() => setShowCategoryModal(true)}
-            className="bg-white hover:bg-gray-100 text-gray-700 px-5 py-2 rounded-lg font-semibold transition-all duration-200 border border-gray-300"
+            className="bg-white hover:bg-gray-100 text-gray-700 px-5 py-2 rounded-lg font-semibold border border-gray-300"
           >
             Quản lý danh mục
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold transition-all duration-200 shadow-md"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold shadow-md"
           >
             + Thêm sản phẩm
           </button>
         </div>
       </div>
 
-      {/* Form Thêm/Sửa (Giữ nguyên) */}
+      {/* Form Thêm/Sửa */}
       {showForm && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-           <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">
               {editing ? "✏️ Chỉnh sửa sản phẩm" : "➕ Thêm sản phẩm mới"}
             </h2>
-            <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700 text-2xl"> × </button>
+            <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
           </div>
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Tên sản phẩm (*)</label>
-                <input className="w-full px-4 py-3 border border-gray-300 rounded-lg" value={form.ten_mon} onChange={e=>setForm({...form, ten_mon:e.target.value})} required />
+                <input className="w-full px-4 py-3 border border-gray-300 rounded-lg" value={form.ten_mon} onChange={(e) => setForm({ ...form, ten_mon: e.target.value })} required />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Giá (₫) (*)</label>
-                <input className="w-full px-4 py-3 border border-gray-300 rounded-lg" type="number" min="0" value={form.gia} onChange={e=>setForm({...form, gia:e.target.value})} required />
+                <input className="w-full px-4 py-3 border border-gray-300 rounded-lg" type="number" min="0" value={form.gia} onChange={(e) => setForm({ ...form, gia: e.target.value })} required />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Danh mục (*)</label>
-                <select className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white" value={form.id_dm} onChange={e => setForm({...form, id_dm: e.target.value})} required >
+                <select className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white" value={form.id_dm} onChange={(e) => setForm({ ...form, id_dm: e.target.value })} required>
                   <option value="" disabled>-- Chọn danh mục --</option>
-                  {categories.map(cat => (<option key={cat.id_dm} value={cat.id_dm}>{cat.ten_dm}</option>))}
+                  {categories.map((cat) => (<option key={cat.id_dm} value={cat.id_dm}>{cat.ten_dm}</option>))}
                 </select>
               </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-               <div>
-                 <label className="block text-sm font-semibold text-gray-700 mb-2">URL Hình ảnh</label>
-                 <input className="w-full px-4 py-3 border border-gray-300 rounded-lg" value={form.anh} onChange={e=>setForm({...form, anh:e.target.value})} />
-               </div>
-               <div>
-                 <label className="block text-sm font-semibold text-gray-700 mb-2">Mô tả</label>
-                 <textarea className="w-full px-4 py-3 border border-gray-300 rounded-lg" value={form.mo_ta} onChange={e => setForm({ ...form, mo_ta: e.target.value })} rows="3"></textarea>
-               </div>
+              {/* 💡 PHẦN UPLOAD ẢNH */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Hình ảnh</label>
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1 mb-2">Hoặc dán link ảnh:</p>
+                    <input
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      value={form.anh}
+                      placeholder="https://..."
+                      onChange={(e) => {
+                        setForm({ ...form, anh: e.target.value });
+                        setPreviewUrl(e.target.value);
+                      }}
+                    />
+                  </div>
+                  {previewUrl && (
+                    <img src={previewUrl} alt="Preview" className="h-24 w-24 object-cover rounded-lg border border-gray-300" />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Mô tả</label>
+                <textarea className="w-full px-4 py-3 border border-gray-300 rounded-lg" value={form.mo_ta} onChange={(e) => setForm({ ...form, mo_ta: e.target.value })} rows="3"></textarea>
+              </div>
             </div>
+
             <div className="flex items-center justify-between mt-6">
               <div className="flex items-center gap-4">
                 <label className="block text-sm font-semibold text-gray-700">Trạng thái</label>
                 <label className="flex items-center cursor-pointer">
-                  <input type="checkbox" checked={form.trang_thai} onChange={e => setForm({ ...form, trang_thai: e.target.checked })} className="sr-only peer" />
+                  <input type="checkbox" checked={form.trang_thai} onChange={(e) => setForm({ ...form, trang_thai: e.target.checked })} className="sr-only peer" />
                   <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   <span className="ms-3 text-sm font-medium text-gray-900">{form.trang_thai ? "Hiển thị" : "Ẩn"}</span>
                 </label>
@@ -375,10 +399,9 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* 💡 8. THANH BỘ LỌC (MỚI) */}
+      {/* Thanh Bộ Lọc */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Tìm kiếm */}
           <input
             type="text"
             name="q"
@@ -387,7 +410,6 @@ export default function ProductsPage() {
             placeholder="🔎 Tìm theo tên sản phẩm..."
             className="w-full px-4 py-3 border border-gray-300 rounded-lg"
           />
-          {/* Lọc danh mục */}
           <select
             name="id_dm"
             value={filters.id_dm}
@@ -395,13 +417,8 @@ export default function ProductsPage() {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white"
           >
             <option value="">Tất cả danh mục</option>
-            {categories.map(cat => (
-              <option key={cat.id_dm} value={cat.id_dm}>
-                {cat.ten_dm}
-              </option>
-            ))}
+            {categories.map((cat) => (<option key={cat.id_dm} value={cat.id_dm}>{cat.ten_dm}</option>))}
           </select>
-          {/* Lọc trạng thái */}
           <select
             name="trang_thai"
             value={filters.trang_thai}
@@ -415,7 +432,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Bảng sản phẩm (Giữ nguyên) */}
+      {/* Bảng sản phẩm */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         {loading ? (
           <div className="text-center p-12 text-gray-500">Đang tải...</div>
@@ -424,7 +441,6 @@ export default function ProductsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              {/* ... (thead giữ nguyên) ... */}
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Hình ảnh</th>
@@ -436,11 +452,10 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {/* 💡 9. ĐỔ DỮ LIỆU TỪ 'items' (đã được lọc) */}
-                {items.map(product => (
+                {items.map((product) => (
                   <tr key={product.id ?? product.id_mon} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <img src={product.anh || "https://placehold.co/100x100/F9F5EC/A1887F?text=O"} alt={product.ten_mon} className="h-14 w-14 rounded-lg object-cover border"/>
+                      <img src={product.anh || "https://placehold.co/100x100/F9F5EC/A1887F?text=O"} alt={product.ten_mon} className="h-14 w-14 rounded-lg object-cover border" />
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-semibold text-gray-900 text-sm">{product.ten_mon}</p>
@@ -455,9 +470,9 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-6 py-4">
                       {product.trang_thai ? (
-                         <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Hiển thị</span>
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Hiển thị</span>
                       ) : (
-                         <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-medium">Ẩn</span>
+                        <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-medium">Ẩn</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
