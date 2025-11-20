@@ -251,10 +251,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu 7 ngày qua</h2>
-          
-
-[Image of a line chart showing revenue trends over the last 7 days]
-
+        
           <div style={{ height: '300px' }}>
             <Line options={chartOptions} data={revenueChartData} />
           </div>

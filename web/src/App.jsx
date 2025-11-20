@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./components/CartContext";
 import { ThemeProvider } from "./context/ThemeContext"; 
 import CartModal from "./components/CartModal";
+import ChatbotWidget from "./components/ChatbotWidget";
 
 // ---- Components ----
 import TopBar from "./components/TopBar";
@@ -27,6 +28,7 @@ import Register from "./pages/Register";
 import CheckoutPage from "./pages/CheckoutPage";
 import RedeemVoucherPage from "./pages/RedeemVoucherPage";
 
+
 // ---- Admin & Employee ----
 import AdminIndex from "./pages/admin";
 import EmployeeApp from "./pages/employee/EmployeeApp";
@@ -41,17 +43,11 @@ function PublicLayout() {
 
   useEffect(() => {
     if (user && user.id_tk) {
-      // 1. Kết nối Socket khi đăng nhập
       connectSocket(user.id_tk);
       
       socket.on('connect', () => {
         socket.emit("join", user.id_tk);
       });
-
-      // ❌ ĐÃ XÓA: socket.on('new_notification') ở đây
-      // Lý do: NotificationBell đã lắng nghe sự kiện này rồi.
-      // Xóa ở đây để tránh hiện 2 thông báo chồng lên nhau.
-
     } else {
       disconnectSocket(); 
     }
@@ -66,9 +62,13 @@ function PublicLayout() {
       <div className="min-h-screen flex flex-col bg-[#fdfaf3] dark:bg-[#0a0a0a] text-neutral-900 dark:text-neutral-100 transition-colors duration-300">
         <TopBar user={user} onCartOpen={() => setCartOpen(true)} onLogout={logout} />
         <CartModal open={cartOpen} onClose={() => setCartOpen(false)} user={user} />
-        
+
+        {/* 🔽🔽 Chatbot xuất hiện ở mọi trang khách 🔽🔽 */}
+        <ChatbotWidget />
+        {/* 🔼🔼 */}
+
         <main className="flex-1 w-full">
-           <Outlet />
+          <Outlet />
         </main>
 
         <footer className="border-t border-gray-200 dark:border-gray-800 mt-12 bg-white dark:bg-[#111] transition-colors">

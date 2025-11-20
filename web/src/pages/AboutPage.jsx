@@ -24,9 +24,9 @@ export default function AboutPage() {
   ];
 
   const storeInfo = [
-    { icon: FaMapMarkerAlt, text: "123 Đường Nguyễn Văn Cừ, Q. Ninh Kiều, TP. Cần Thơ", label: "Địa chỉ" },
-    { icon: FaClock, text: "06:30 - 22:30 (Mở cửa hàng ngày)", label: "Giờ mở cửa" },
-    { icon: FaPhoneAlt, text: "1900 123 456", label: "Hotline" },
+    { icon: FaMapMarkerAlt, text: "326A Nguyễn Văn Linh, An Khánh, Ninh Kiều, Cần Thơ Vietnam", label: "Địa chỉ" },
+    { icon: FaClock, text: "06:00 - 23:30 (Mở cửa hàng ngày)", label: "Giờ mở cửa" },
+    { icon: FaPhoneAlt, text: "0292 3943 516", label: "Hotline" },
     { icon: FaEnvelope, text: "contact@locoffee.vn", label: "Email" },
   ];
 
