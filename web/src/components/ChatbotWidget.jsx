@@ -16,29 +16,34 @@ export default function ChatbotWidget() {
   const toggleOpen = () => setIsOpen((prev) => !prev);
 
   const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || loading) return;
+  const trimmed = input.trim();
+  if (!trimmed || loading) return;
 
-    // Thêm tin nhắn của user vào khung chat
-    const newMessages = [...messages, { sender: "user", text: trimmed }];
-    setMessages(newMessages);
-    setInput("");
-    setLoading(true);
+  const newMessages = [...messages, { sender: "user", text: trimmed }];
+  setMessages(newMessages);
+  setInput("");
+  setLoading(true);
 
-    try {
-      const res = await sendChatMessage(trimmed);
-      const reply = res.data?.reply || "Xin lỗi, mình chưa hiểu ý bạn lắm.";
+  try {
+    // Chuyển messages hiện tại thành history cho BE
+    const historyForApi = newMessages.map((m) => ({
+      role: m.sender === "bot" ? "assistant" : "user",
+      content: m.text,
+    }));
 
-      setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { sender: "bot", text: "Chatbot đang gặp sự cố, bạn thử lại sau nhé." },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    const res = await sendChatMessage(trimmed, historyForApi);
+    const reply = res.data?.reply || "Xin lỗi, mình chưa hiểu ý bạn lắm.";
+
+    setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
+  } catch (err) {
+    console.error(err);
+    setMessages((prev) => [
+      ...prev,
+      { sender: "bot", text: "Chatbot đang gặp sự cố, bạn thử lại sau nhé." },
+    ]);
+  } finally {
+    setLoading(false);
+  }
   };
 
   const handleKeyDown = (e) => {
