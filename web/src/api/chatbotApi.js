@@ -1,12 +1,11 @@
-// web/src/api/chatbotApi.js
 import axios from "axios";
 
-// ⚠️ Đảm bảo đúng port backend của bạn (4000 hoặc 5000...)
-// Trong log BE bạn đang dùng 4000 nên mình để 4000:
 const chatbotApi = axios.create({
-  baseURL: "http://localhost:4000/api",
+  baseURL: "http://localhost:4000/api", // giữ như bạn đang dùng
 });
 
-export const sendChatMessage = (message) => {
-  return chatbotApi.post("/chatbot", { message });
+// message: string
+// history: [{ role: "user" | "assistant", content: "..." }, ...]
+export const sendChatMessage = (message, history = []) => {
+  return chatbotApi.post("/chatbot", { message, history });
 };
