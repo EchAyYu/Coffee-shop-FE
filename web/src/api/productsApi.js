@@ -1,15 +1,15 @@
-// web/src/api/productsApi.js
 import axios from "axios";
 
 const productsApi = axios.create({
-  baseURL: "http://localhost:4000/api", // cùng backend với orders
+  baseURL: "http://localhost:4000/api",
 });
 
-// Lấy danh sách 10 món mới nhất để gợi ý đặt nhanh
 export const getSuggestedProducts = async () => {
   const res = await productsApi.get("/products", {
     params: { limit: 10, page: 1 },
   });
-  // Giả sử backend trả { data: { products, pagination } } hoặc tương tự
+
+  // Tùy cấu trúc response của BE mà chỉnh dòng này.
+  // Nếu BE trả { data: { rows: [...], count: ... } } thì đổi lại cho đúng.
   return res.data?.data || res.data?.products || res.data || [];
 };

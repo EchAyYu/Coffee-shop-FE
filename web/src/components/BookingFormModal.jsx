@@ -179,8 +179,8 @@ await reservations.create({
         icon: "success",
         title: "Gửi yêu cầu thành công!", // Đổi tiêu đề
         text: cart.length > 0 
-            ? "Yêu cầu đặt bàn và đặt món của bạn đã được gửi. Nhà hàng sẽ xác nhận sớm nhất." 
-            : "Yêu cầu đặt bàn của bạn đã được gửi. Nhà hàng sẽ xác nhận sớm nhất.",
+            ? "Yêu cầu đặt bàn và đặt món của bạn đã được gửi. Lo Coffee sẽ xác nhận sớm nhất." 
+            : "Yêu cầu đặt bàn của bạn đã được gửi. Lo Coffee sẽ xác nhận sớm nhất.",
         timer: 4000,
         showConfirmButton: true, // Hiện nút để khách yên tâm bấm đóng
         confirmButtonText: "Đã hiểu",
