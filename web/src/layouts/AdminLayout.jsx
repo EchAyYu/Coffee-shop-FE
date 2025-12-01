@@ -24,10 +24,6 @@ export default function AdminLayout() {
     { name: "Đánh giá", path: "/admin/reviews", roles: ["admin"] },
     { name: "Bàn", path: "/admin/tables", roles: ["admin"] },
     { name: "Khách hàng", path: "/admin/customers", roles: ["admin"] },
-    
-    // ⭐ THÊM MỤC QUẢN LÝ KHUYẾN MÃI
-    { name: "Khuyến mãi", path: "/admin/promotions", roles: ["admin"] },
-    
     { name: "Voucher", path: "/admin/vouchers", roles: ["admin"] },
     { name: "Nhân viên", path: "/admin/employees", roles: ["admin"] },
   ];

@@ -10,7 +10,6 @@ import AdminLogin from "./AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
 import AdminVouchersPage from "./AdminVouchersPage";
 import AdminReviewsPage from "./AdminReviewsPage";
-import AdminPromotions from "./AdminPromotions";
 
 // 💡 1. IMPORT CÁC FILE MỚI
 import AdminEmployees from "./AdminEmployees";
@@ -40,7 +39,6 @@ export default function AdminIndex() {
             <Route path="tables" element={<AdminTables />} />
             <Route path="customers" element={<AdminCustomers />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
-            <Route path="promotions" element={<AdminPromotions />} />
             <Route path="employees" element={<AdminEmployees />} />
           </Route>
 
