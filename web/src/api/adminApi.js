@@ -229,5 +229,20 @@ export const uploadImage = async (file) => {
   });
   return res.data; // Trả về { success: true, url: "..." }
 };
+
+// =====================
+// 🔹 PROMOTIONS (Admin)
+// =====================
+export const promotions = {
+  // ✅ Đã dùng đúng adminApi
+  getAllForAdmin: () => adminApi.get("/admin/promotions"), 
+
+  create: (data) => adminApi.post("/promotions", data),
+  update: (id, data) => adminApi.put(`/promotions/${id}`, data),
+  delete: (id) => adminApi.delete(`/promotions/${id}`),
+
+  // Bạn có thể thêm lại hàm public nếu cần (dùng adminApi nếu admin cũng cần)
+  getPublic: () => adminApi.get("/promotions"), 
+};
 export default adminApi;
 

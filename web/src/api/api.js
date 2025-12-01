@@ -223,4 +223,16 @@ export const notifications = {
   read:     (id) => api.put(`/notifications/${id}/read`),
   readAll:  () => api.put("/notifications/read-all"),
 };
+
+// =====================
+// 🔹 PROMOTIONS (Client Public)
+// =====================
+// ✅ THÊM PHẦN NÀY ĐỂ KHẮC PHỤC LỖI "promotions.getPublic is not a function"
+export const promotions = {
+  // Hàm công khai dùng cho HomePage
+  getPublic: () => api.get("/promotions"), 
+  // Có thể thêm các hàm khác nếu người dùng cần
+}
+
+
 export default api;

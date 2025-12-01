@@ -1,24 +1,61 @@
-// web/src/pages/HomePage.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaCoffee, FaCalendarAlt, FaStar, FaShoppingCart, FaLeaf, FaAward, FaMugHot } from "react-icons/fa";
-import { getProducts } from "../api/api"; // Hoặc import từ adminApi tùy cấu trúc folder của bạn
-import { useCart } from "../components/CartContext"; // Import hook giỏ hàng
+import { 
+  FaCoffee, FaCalendarAlt, FaStar, FaShoppingCart, FaLeaf, FaAward, 
+  FaMugHot, FaTag, FaClock 
+} from "react-icons/fa";
+// Import promotions từ api.js (Đảm bảo bạn đã thêm hàm promotions vào api.js)
+import { getProducts, promotions } from "../api/api"; 
+import { useCart } from "../components/CartContext"; 
 
 // Helper định dạng tiền
 const formatCurrency = (value) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
+// Helper để chuyển đổi số thứ sang tên (0: CN, 1: T2, ...)
+const getDayName = (dayIndex) => {
+    const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+    return days[dayIndex];
+}
+
+// Helper để kiểm tra khuyến mãi có hoạt động trong ngày hôm nay không (Logic FE)
+const isPromotionActiveToday = (promotion) => {
+  const { lap_lai_thu, ngay_bd } = promotion;
+  const currentDate = new Date();
+  
+  // 1. Kiểm tra ngày bắt đầu (ngay_bd)
+  // Nếu ngày_bd tồn tại và lớn hơn ngày hiện tại, khuyến mãi chưa bắt đầu
+  if (ngay_bd && new Date(ngay_bd) > currentDate) {
+    return false; 
+  }
+  
+  // 2. Kiểm tra logic lặp lại hàng tuần (lap_lai_thu)
+  if (lap_lai_thu !== null) {
+    // lap_lai_thu: 0=CN, 1=T2, ..., 6=T7 (của DB)
+    const currentDayOfWeek = currentDate.getDay(); // 0=CN, 1=T2, ..., 6=T7 (của JS)
+    
+    // Nếu ngày lặp lại được định nghĩa, nhưng không khớp với ngày hiện tại
+    if (lap_lai_thu !== currentDayOfWeek) {
+      return false; 
+    }
+  }
+  
+  // Nếu vượt qua kiểm tra ngày bắt đầu và ngày/thứ lặp lại, nó được coi là active.
+  // Việc kiểm tra ngày kết thúc đã được xử lý ở Backend.
+  return true; 
+};
+
+
 export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [promotionsList, setPromotionsList] = useState([]); // State mới cho khuyến mãi
   const [loading, setLoading] = useState(true);
-  const { addToCart } = useCart(); // Lấy hàm thêm vào giỏ
+  const { addToCart } = useCart(); 
 
-  // Fetch sản phẩm nổi bật
   useEffect(() => {
+    // --- 1. Fetch Sản phẩm nổi bật ---
     const fetchFeatured = async () => {
       try {
-        // Lấy sản phẩm (giới hạn 8 món)
         const res = await getProducts({ limit: 8, page: 1 });
         const products = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
         setFeaturedProducts(products);
@@ -28,7 +65,24 @@ export default function HomePage() {
         setLoading(false);
       }
     };
+    
+    // --- 2. Fetch Khuyến mãi ---
+    const fetchPromotions = async () => {
+        try {
+            // Gọi API lấy khuyến mãi công khai (đã được lọc hien_thi: true & ngay_kt)
+            const res = await promotions.getPublic();
+            const allPromos = res.data || [];
+            
+            // Lọc lại ở FE bằng hàm helper để xử lý logic lặp lại hàng tuần (lap_lai_thu)
+            const activePromos = allPromos.filter(isPromotionActiveToday);
+            setPromotionsList(activePromos);
+        } catch (error) {
+            console.error("Lỗi tải khuyến mãi:", error);
+        }
+    };
+
     fetchFeatured();
+    fetchPromotions();
   }, []);
 
   return (
@@ -47,10 +101,6 @@ export default function HomePage() {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
         >
-          {/* 💡 MẸO: Nếu file ở public/images, chỉ cần ghi đường dẫn là /images/... */}
-          {/* <source src="/images/coffee-pour.mp4" type="video/mp4" /> */}
-          
-          {/* Link demo online để bạn thấy ngay kết quả */}
           <source src="public/images/coffee-pour.mp4" type="video/mp4" />
         </video>
 
@@ -100,7 +150,7 @@ export default function HomePage() {
 
 
       {/* =========================================
-          🏆 2. WHY CHOOSE US (Tại sao chọn LO)
+          🏆 2. WHY CHOOSE US 
       ========================================= */}
       <section className="px-4 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
@@ -113,8 +163,8 @@ export default function HomePage() {
             <p className="text-gray-500 dark:text-gray-400 text-sm">100% hạt cà phê được tuyển chọn kỹ lưỡng từ nông trại Đà Lạt.</p>
           </div>
 
-           {/* Feature 2 */}
-           <div className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-800 group">
+            {/* Feature 2 */}
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-800 group">
             <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full grid place-items-center text-2xl group-hover:scale-110 transition-transform">
               <FaMugHot />
             </div>
@@ -122,8 +172,8 @@ export default function HomePage() {
             <p className="text-gray-500 dark:text-gray-400 text-sm">Công thức pha chế độc quyền giữ trọn hương vị truyền thống.</p>
           </div>
 
-           {/* Feature 3 */}
-           <div className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-800 group">
+            {/* Feature 3 */}
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#1E1E1E] shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-800 group">
             <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded-full grid place-items-center text-2xl group-hover:scale-110 transition-transform">
               <FaAward />
             </div>
@@ -205,31 +255,83 @@ export default function HomePage() {
         </div>
       </section>
 
+
       {/* =========================================
-          🎁 4. BANNER KHUYẾN MÃI (PROMOTION)
+          🎁 4. DANH SÁCH KHUYẾN MÃI (PROMOTION LIST)
+          Phần này đã được thay thế bằng danh sách động
       ========================================= */}
-      <section className="px-4 max-w-6xl mx-auto">
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-amber-700 to-orange-900 text-white p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-2xl">
-          {/* Họa tiết nền */}
-          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-          
-          <div className="relative z-10 mb-6 md:mb-0 md:w-2/3">
-            <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block">
-              Khuyến mãi đặc biệt
-            </span>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Giảm ngay 20% cho đơn hàng đầu tiên!</h2>
-            <p className="text-orange-100 text-lg mb-0">
-              Đăng ký thành viên ngay hôm nay để nhận ưu đãi và tích điểm đổi quà.
-            </p>
-          </div>
-          
-          <div className="relative z-10">
-            <Link to="/register" className="px-8 py-4 bg-white text-orange-800 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform inline-block">
-              Đăng ký ngay
-            </Link>
-          </div>
-        </div>
-      </section>
+      {promotionsList.length > 0 && (
+          <section className="px-4 max-w-6xl mx-auto">
+              <div className="text-center mb-12">
+                  <span className="text-orange-600 font-bold tracking-wider uppercase text-sm">Ưu đãi hôm nay</span>
+                  <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 dark:text-white">Chương Trình Khuyến Mãi</h2>
+                  <div className="w-20 h-1 bg-orange-500 mx-auto rounded-full"></div>
+              </div>
+
+              {/* Danh sách khuyến mãi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {promotionsList.map((promo) => (
+                      <div 
+                          key={promo.id_km} 
+                          className="relative bg-white dark:bg-[#1E1E1E] rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-800 transition-all hover:shadow-2xl group"
+                      >
+                          {/* Banner ảnh */}
+                          <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-800">
+                              <img 
+                                  src={promo.hinh_anh || "https://placehold.co/400x200?text=Coffee+Promo"} 
+                                  alt={promo.ten_km} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                          </div>
+
+                          {/* Nội dung */}
+                          <div className="p-5">
+                              {/* Phần trăm giảm */}
+                              <div className="absolute top-0 left-0 mt-3 ml-3 bg-red-600 text-white font-black text-xl px-4 py-2 rounded-lg shadow-xl transform -rotate-3">
+                                  GIẢM **{promo.pt_giam}%**
+                              </div>
+
+                              <h3 className="font-bold text-xl text-gray-800 dark:text-white mb-2 line-clamp-2">
+                                  <FaTag className="inline mr-2 text-orange-600" /> {promo.ten_km}
+                              </h3>
+                              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
+                                  {promo.mo_ta || "Nội dung chi tiết chương trình khuyến mãi đang chờ bạn khám phá."}
+                              </p>
+
+                              {/* Thời gian áp dụng */}
+                              <div className="flex items-center text-sm text-orange-600 font-semibold mt-4 border-t pt-4 border-gray-100 dark:border-gray-800">
+                                  <FaClock className="mr-2" />
+                                  {promo.lap_lai_thu !== null ? (
+                                      <span>Áp dụng **{getDayName(promo.lap_lai_thu)}** hàng tuần</span>
+                                  ) : (
+                                      <span>
+                                          Từ: **{new Date(promo.ngay_bd).toLocaleDateString()}**
+                                          {promo.ngay_kt && ` - Đến: **${new Date(promo.ngay_kt).toLocaleDateString()}**`}
+                                      </span>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </section>
+      )}
+
+      {/* Hiển thị banner tĩnh cũ nếu không có khuyến mãi nào active */}
+      {promotionsList.length === 0 && (
+          <section className="px-4 max-w-6xl mx-auto">
+             <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-amber-700 to-orange-900 text-white p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-2xl">
+                 <div className="relative z-10 mb-6 md:mb-0 md:w-2/3">
+                     <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block">Khuyến mãi đặc biệt</span>
+                     <h2 className="text-3xl md:text-4xl font-bold mb-4">Giảm ngay 20% cho đơn hàng đầu tiên!</h2>
+                     <p className="text-orange-100 text-lg mb-0">Đăng ký thành viên ngay hôm nay để nhận ưu đãi và tích điểm đổi quà.</p>
+                 </div>
+                 <div className="relative z-10">
+                     <Link to="/register" className="px-8 py-4 bg-white text-orange-800 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform inline-block">Đăng ký ngay</Link>
+                 </div>
+             </div>
+          </section>
+      )}
 
     </div>
   );
