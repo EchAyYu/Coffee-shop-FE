@@ -23,13 +23,20 @@ export default function RedeemVoucherPage() {
   const fetchData = () => {
     setLoading(true);
     setError("");
+
     Promise.all([vouchers.catalog(), vouchers.my()])
       .then(([catalogRes, myVouchersRes]) => {
-        // ✅ KHÔNG lọc points_cost > 0 nữa – backend đã lọc active + còn số lượng
-        const redeemableVouchers =
+        // Log để debug nếu cần
+        console.log("📦 catalogRes:", catalogRes.data);
+        console.log("📦 myVouchersRes:", myVouchersRes.data);
+
+        const catalogData =
           catalogRes.data?.data || catalogRes.data || [];
-        setCatalogList(redeemableVouchers);
-        setMyVoucherList(myVouchersRes.data?.data || myVouchersRes.data || []);
+        const myData =
+          myVouchersRes.data?.data || myVouchersRes.data || [];
+
+        setCatalogList(Array.isArray(catalogData) ? catalogData : []);
+        setMyVoucherList(Array.isArray(myData) ? myData : []);
       })
       .catch((err) => {
         console.error("Lỗi tải voucher:", err);
@@ -41,6 +48,13 @@ export default function RedeemVoucherPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // 🔥 Nếu user đã có ít nhất 1 voucher (vd: VOUCHER 20K chào mừng) -> tự động chuyển sang tab "Voucher Của Tôi"
+  useEffect(() => {
+    if (!loading && myVoucherList.length > 0) {
+      setActiveTab("my");
+    }
+  }, [loading, myVoucherList.length]);
 
   const handleRedeem = async (voucher) => {
     if (points < voucher.points_cost) {
@@ -223,9 +237,21 @@ export default function RedeemVoucherPage() {
       {/* 5. Tab Voucher Của Tôi */}
       {activeTab === "my" && !loading && (
         <div className="space-y-4 max-w-3xl mx-auto">
+          {/* Banner chào mừng nếu có VOUCHER 20K */}
+          {myVoucherList.some((r) => {
+            const v = r.Voucher || r.voucher;
+            return v?.name === "VOUCHER 20K";
+          }) && (
+            <div className="mb-2 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
+              🎉 Chào mừng bạn đến với LO Coffee! Bạn đang có một{" "}
+              <b>Voucher 20K</b> áp dụng cho đơn hàng đủ điều kiện.
+            </div>
+          )}
+
           {myVoucherList.map((r) => (
             <MyVoucherCard key={r.id} redemption={r} />
           ))}
+
           {myVoucherList.length === 0 && (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <FaTicketAlt className="mx-auto text-4xl mb-3 opacity-30" />
@@ -240,7 +266,14 @@ export default function RedeemVoucherPage() {
 
 // --- Component Card Voucher Của Tôi ---
 function MyVoucherCard({ redemption }) {
-  const { Voucher: v, code, status, expires_at } = redemption;
+  // Hỗ trợ cả alias Voucher hoặc voucher (phòng sau này đổi alias)
+  const v = redemption.Voucher || redemption.voucher;
+  const { code, status, expires_at } = redemption;
+
+  if (!v) {
+    console.warn("⚠️ Redemption không có voucher đi kèm:", redemption);
+    return null;
+  }
 
   const isExpired =
     status === "expired" || (expires_at && new Date(expires_at) < new Date());
@@ -262,8 +295,6 @@ function MyVoucherCard({ redemption }) {
       bg: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
     };
   }
-
-  if (!v) return null;
 
   const discountText =
     v.discount_type === "fixed"

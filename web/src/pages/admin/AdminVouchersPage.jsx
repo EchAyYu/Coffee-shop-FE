@@ -17,7 +17,7 @@ export default function AdminVouchersPage() {
     name: "",
     description: "",
     code_prefix: "VCH",
-    discount_type: "fixed",
+    discount_type: "fixed", // 'fixed' | 'percent'
     discount_value: "",
     points_cost: "",
     min_order: 0,
@@ -55,36 +55,7 @@ export default function AdminVouchersPage() {
     }));
   };
 
-  // Tạo mới voucher
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (!form.name || !form.discount_value || !form.points_cost) {
-    toast.error("Tên, Giá trị giảm và Phí điểm là bắt buộc.");
-    return;
-  }
-
-  setIsSubmitting(true);
-  try {
-    const dataToSubmit = {
-      ...form,
-      // Giữ discount_value là số cho chắc
-      discount_value: parseFloat(form.discount_value),
-      // ❌ KHÔNG parseInt nữa, để nguyên string
-      points_cost: form.points_cost,
-
-      min_order: parseFloat(form.min_order || 0),
-      max_discount: form.max_discount ? parseFloat(form.max_discount) : null,
-      expires_at: form.expires_at ? new Date(form.expires_at) : null,
-      total_quantity: form.total_quantity
-        ? parseInt(form.total_quantity)
-        : null,
-    };
-
-    await vouchersAdmin.create(dataToSubmit);
-    toast.success("Tạo voucher thành công!");
-    await fetchVouchers();
-    setShowForm(false);
+  const resetForm = () =>
     setForm({
       name: "",
       description: "",
@@ -98,19 +69,73 @@ const handleSubmit = async (e) => {
       total_quantity: "",
       active: true,
     });
-  } catch (err) {
-    console.error("Lỗi tạo voucher:", err);
-    toast.error(`Lỗi khi tạo: ${err.message}`);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+
+  // Tạo mới voucher
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!form.name || form.discount_value === "" || form.points_cost === "") {
+      toast.error("Tên, Giá trị giảm và Phí điểm là bắt buộc.");
+      return;
+    }
+
+    const discountNum = parseFloat(form.discount_value);
+    if (Number.isNaN(discountNum) || discountNum <= 0) {
+      toast.error("Giá trị giảm phải lớn hơn 0.");
+      return;
+    }
+
+    // Nếu là giảm theo % thì giới hạn 1–100
+    if (form.discount_type === "percent") {
+      if (discountNum <= 0 || discountNum > 100) {
+        toast.error("Giảm theo % phải nằm trong khoảng 1–100.");
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      const dataToSubmit = {
+        ...form,
+        discount_value: discountNum,
+        // Để nguyên string để không lỗi, nhưng vẫn cho 0 điểm
+        points_cost: form.points_cost === "" ? "0" : form.points_cost,
+        min_order: parseFloat(form.min_order || 0),
+        max_discount:
+          form.discount_type === "percent" && form.max_discount
+            ? parseFloat(form.max_discount)
+            : null,
+        expires_at: form.expires_at ? new Date(form.expires_at) : null,
+        total_quantity: form.total_quantity
+          ? parseInt(form.total_quantity)
+          : null,
+      };
+
+      await vouchersAdmin.create(dataToSubmit);
+      toast.success("Tạo voucher thành công!");
+      await fetchVouchers();
+      setShowForm(false);
+      resetForm();
+    } catch (err) {
+      console.error("Lỗi tạo voucher:", err);
+      toast.error(`Lỗi khi tạo: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Xóa voucher
-  const handleDelete = async (id) => {
+  const handleDelete = async (voucher) => {
+    if ((voucher.redeemed_count || 0) > 0) {
+      toast.warn(
+        "Voucher này đã được khách hàng đổi / sử dụng, không thể xóa. Hãy tắt trạng thái 'Kích hoạt' nếu muốn ngừng áp dụng."
+      );
+      return;
+    }
+
     if (!window.confirm("Bạn có chắc muốn xóa voucher này?")) return;
     try {
-      await vouchersAdmin.delete(id);
+      await vouchersAdmin.delete(voucher.id);
       toast.success("Xóa voucher thành công!");
       await fetchVouchers();
     } catch (err) {
@@ -144,6 +169,8 @@ const handleSubmit = async (e) => {
     return `${v.discount_value}%`;
   };
 
+  const isPercent = form.discount_type === "percent";
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -152,9 +179,14 @@ const handleSubmit = async (e) => {
           Quản lý Voucher Đổi Thưởng
         </h1>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (!showForm) resetForm();
+            setShowForm(!showForm);
+          }}
           className={`px-5 py-2 rounded-lg font-semibold text-white transition-all ${
-            showForm ? "bg-red-500 hover:bg-red-600" : "bg-blue-600 hover:bg-blue-700"
+            showForm
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
           {showForm ? "Hủy" : "+ Tạo Voucher Mới"}
@@ -177,11 +209,12 @@ const handleSubmit = async (e) => {
                 name="name"
                 value={form.name}
                 onChange={handleFormChange}
-                placeholder="VD: Giảm 20K"
+                placeholder="VD: VOUCHER 20K"
                 className="p-2 border rounded-md w-full"
                 required
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Loại giảm giá (*)
@@ -196,19 +229,28 @@ const handleSubmit = async (e) => {
                 <option value="percent">Giảm theo (%)</option>
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Giá trị giảm (*)
+                {isPercent ? "Giảm (%) *" : "Giảm cố định (VND) *"}
               </label>
               <input
                 name="discount_value"
                 value={form.discount_value}
                 onChange={handleFormChange}
                 type="number"
-                placeholder="VD: 20000 hoặc 10"
+                placeholder={
+                  isPercent ? "VD: 10 (10%)" : "VD: 20000 (20.000đ)"
+                }
                 className="p-2 border rounded-md w-full"
                 required
+                min={0}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                {isPercent
+                  ? "Giá trị 1–100, ví dụ 10 = giảm 10%."
+                  : "Nhập số tiền giảm trực tiếp (VND)."}
+              </p>
             </div>
 
             {/* Cột 2 */}
@@ -221,11 +263,16 @@ const handleSubmit = async (e) => {
                 value={form.points_cost}
                 onChange={handleFormChange}
                 type="number"
-                placeholder="VD: 100"
+                placeholder="VD: 100 (0 = miễn phí)"
                 className="p-2 border rounded-md w-full"
                 required
+                min={0}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                0 điểm thường dùng cho voucher nội bộ (chào mừng, tặng riêng).
+              </p>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Đơn tối thiểu
@@ -237,21 +284,29 @@ const handleSubmit = async (e) => {
                 type="number"
                 placeholder="VD: 50000"
                 className="p-2 border rounded-md w-full"
+                min={0}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Giảm tối đa (cho %)
-              </label>
-              <input
-                name="max_discount"
-                value={form.max_discount}
-                onChange={handleFormChange}
-                type="number"
-                placeholder="VD: 25000"
-                className="p-2 border rounded-md w-full"
-              />
-            </div>
+
+            {isPercent && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Giảm tối đa (áp dụng cho %)
+                </label>
+                <input
+                  name="max_discount"
+                  value={form.max_discount}
+                  onChange={handleFormChange}
+                  type="number"
+                  placeholder="VD: 25000"
+                  className="p-2 border rounded-md w-full"
+                  min={0}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Giới hạn số tiền giảm tối đa khi dùng % (có thể bỏ trống).
+                </p>
+              </div>
+            )}
 
             {/* Cột 3 */}
             <div>
@@ -266,6 +321,7 @@ const handleSubmit = async (e) => {
                 className="p-2 border rounded-md w-full"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Ngày hết hạn
@@ -278,6 +334,7 @@ const handleSubmit = async (e) => {
                 className="p-2 border rounded-md w-full"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tổng số lượng
@@ -289,6 +346,7 @@ const handleSubmit = async (e) => {
                 type="number"
                 placeholder="Bỏ trống = vô hạn"
                 className="p-2 border rounded-md w-full"
+                min={0}
               />
             </div>
           </div>
@@ -362,64 +420,76 @@ const handleSubmit = async (e) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {vouchers.map((v) => (
-                <tr key={v.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      {v.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
-                      {renderDiscount(v)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-semibold text-orange-600">
-                      {v.points_cost} điểm
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-700">
-                      {v.redeemed_count} / {v.total_quantity || "∞"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleToggleActive(v)}
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                        v.active
-                          ? "bg-green-100 text-green-700 border border-green-200"
-                          : "bg-gray-100 text-gray-600 border border-gray-200"
-                      }`}
-                    >
-                      {v.active ? (
-                        <>
-                          <FaToggleOn /> Kích hoạt
-                        </>
-                      ) : (
-                        <>
-                          <FaToggleOff /> Vô hiệu
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {v.expires_at
-                      ? new Date(v.expires_at).toLocaleDateString("vi-VN")
-                      : "Vĩnh viễn"}
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleDelete(v.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Xóa voucher"
-                    >
-                      <FaTrashAlt />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {vouchers.map((v) => {
+                const canDelete = (v.redeemed_count || 0) === 0;
+                return (
+                  <tr key={v.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {v.name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        {renderDiscount(v)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-semibold text-orange-600">
+                        {v.points_cost} điểm
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-700">
+                        {v.redeemed_count} / {v.total_quantity || "∞"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleToggleActive(v)}
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                          v.active
+                            ? "bg-green-100 text-green-700 border border-green-200"
+                            : "bg-gray-100 text-gray-600 border border-gray-200"
+                        }`}
+                      >
+                        {v.active ? (
+                          <>
+                            <FaToggleOn /> Kích hoạt
+                          </>
+                        ) : (
+                          <>
+                            <FaToggleOff /> Vô hiệu
+                          </>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {v.expires_at
+                        ? new Date(v.expires_at).toLocaleDateString("vi-VN")
+                        : "Vĩnh viễn"}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleDelete(v)}
+                        className={`${
+                          canDelete
+                            ? "text-red-600 hover:text-red-900"
+                            : "text-gray-400 cursor-not-allowed"
+                        }`}
+                        title={
+                          canDelete
+                            ? "Xóa voucher"
+                            : "Voucher đã được khách hàng đổi, không thể xóa"
+                        }
+                        disabled={!canDelete}
+                      >
+                        <FaTrashAlt />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

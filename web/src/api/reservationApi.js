@@ -1,8 +1,4 @@
-import axios from "axios";
-
-const reservationApi = axios.create({
-  baseURL: "http://localhost:4000/api",
-});
+import api from "./api";
 
 // data: { name, phone, date, time, people, note }
 export const createReservationFromChat = (data) => {
@@ -15,5 +11,6 @@ export const createReservationFromChat = (data) => {
     ghi_chu: data.note || "Đặt bàn qua chatbot",
   };
 
-  return reservationApi.post("/reservations", payload);
+  // Dùng instance api chung (có token + refresh)
+  return api.post("/reservations", payload);
 };
