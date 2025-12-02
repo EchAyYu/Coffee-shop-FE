@@ -9,7 +9,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-  uploadImage, // ✅ Import hàm upload
+  uploadImage, 
 } from "../../api/adminApi";
 import { FaTrashAlt, FaPencilAlt, FaTimes } from "react-icons/fa";
 

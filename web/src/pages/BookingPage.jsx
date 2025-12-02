@@ -1,21 +1,34 @@
+// src/pages/BookingPage.jsx
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";          // ✅ THÊM
 import Swal from "sweetalert2";
-import { tables } from "../api/api"; 
+import { tables } from "../api/api";
 import BookingFormModal from "../components/BookingFormModal";
-import TableScheduleModal from "../components/TableScheduleModal"; // 💡 Import Modal Lịch
-import { FaSearch, FaChair, FaMapMarkerAlt, FaInfoCircle, FaCalendarAlt } from "react-icons/fa";
+import TableScheduleModal from "../components/TableScheduleModal";
+import {
+  FaSearch,
+  FaChair,
+  FaMapMarkerAlt,
+  FaInfoCircle,
+  FaCalendarAlt,
+} from "react-icons/fa";
 
 export default function BookingPage() {
+  const location = useLocation();                        // ✅ THÊM
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedArea, setSelectedArea] = useState("all");
 
-  // State quản lý Modal Đặt bàn
+  // Modal đặt bàn
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
-  
-  // State quản lý Modal Xem Lịch
+
+  // ✅ NEW: dữ liệu prefill (từ chatbot)
+  const [prefill, setPrefill] = useState(null);
+
+  // Modal xem lịch
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [scheduleTable, setScheduleTable] = useState(null);
 
@@ -26,6 +39,25 @@ export default function BookingPage() {
     { value: "vip", label: "Phòng VIP" },
   ];
 
+  // ✅ Đọc query string để lấy dữ liệu từ chatbot
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("fromChatbot") === "1") {
+      const p = {
+        ho_ten: qs.get("name") || "",
+        sdt: qs.get("phone") || "",
+        ngay_dat: qs.get("date") || "",
+        gio_dat: qs.get("time") || "",
+        so_nguoi: Number(qs.get("people")) || 1,
+        ghi_chu: qs.get("note") || "",
+      };
+      console.log("🧾 Prefill từ chatbot:", p);
+      setPrefill(p);
+    } else {
+      setPrefill(null);
+    }
+  }, [location.search]);
+
   useEffect(() => {
     loadTables();
   }, [selectedArea]);
@@ -34,6 +66,9 @@ export default function BookingPage() {
     setIsModalOpen(false);
     setSelectedTable(null);
     loadTables(); // Refresh lại trạng thái bàn
+
+    // Nếu muốn xóa query khi đóng modal:
+    // window.history.replaceState({}, "", "/booking");
   };
 
   const loadTables = async () => {
@@ -41,7 +76,11 @@ export default function BookingPage() {
       setLoading(true);
       const params = selectedArea !== "all" ? { khu_vuc: selectedArea } : {};
       const res = await tables.list(params);
-      const list = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
       setData(list);
     } catch (err) {
       setError(err.message);
@@ -53,21 +92,31 @@ export default function BookingPage() {
   // Helper: Màu sắc trạng thái
   const getStatusColor = (status) => {
     switch (status) {
-      case "available": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "occupied": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "reserved": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-      case "maintenance": return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
-      default: return "bg-gray-100 text-gray-700";
+      case "available":
+        return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+      case "occupied":
+        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      case "reserved":
+        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+      case "maintenance":
+        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case "available": return "Còn trống";
-      case "occupied": return "Đang dùng";
-      case "reserved": return "Đã đặt";
-      case "maintenance": return "Bảo trì";
-      default: return status;
+      case "available":
+        return "Còn trống";
+      case "occupied":
+        return "Đang dùng";
+      case "reserved":
+        return "Đã đặt";
+      case "maintenance":
+        return "Bảo trì";
+      default:
+        return status;
     }
   };
 
@@ -92,12 +141,11 @@ export default function BookingPage() {
   // Hàm mở modal xem lịch
   const handleViewSchedule = (table) => {
     setScheduleTable(table);
-    setIsScheduleOpen(true);  
+    setIsScheduleOpen(true);
   };
 
   return (
     <div className="py-10 max-w-7xl mx-auto px-4 min-h-screen">
-      
       {/* 1. Header Section */}
       <div className="text-center mb-12 animate-fade-in-up">
         <span className="text-orange-600 font-bold tracking-wider uppercase text-sm bg-orange-100 dark:bg-orange-900/30 px-3 py-1 rounded-full">
@@ -108,7 +156,8 @@ export default function BookingPage() {
         </h2>
         <div className="w-24 h-1.5 bg-gradient-to-r from-orange-400 to-red-600 mx-auto rounded-full"></div>
         <p className="text-gray-500 dark:text-gray-400 mt-4 max-w-2xl mx-auto">
-          Không gian thoáng đãng, ấm cúng. Hãy chọn cho mình một vị trí đẹp nhất để thưởng thức cà phê.
+          Không gian thoáng đãng, ấm cúng. Hãy chọn cho mình một vị trí đẹp
+          nhất để thưởng thức cà phê.
         </p>
       </div>
 
@@ -118,13 +167,12 @@ export default function BookingPage() {
           <button
             key={area.value}
             onClick={() => setSelectedArea(area.value)}
-            className={`
-              px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border
-              ${selectedArea === area.value
-                ? "bg-orange-600 text-white border-orange-600 shadow-lg shadow-orange-600/30 scale-105"
-                : "bg-white dark:bg-[#1E1E1E] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-orange-50 dark:hover:bg-white/5 hover:border-orange-200"
-              }
-            `}
+            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 border
+              ${
+                selectedArea === area.value
+                  ? "bg-orange-600 text-white border-orange-600 shadow-lg shadow-orange-600/30 scale-105"
+                  : "bg-white dark:bg-[#1E1E1E] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-orange-50 dark:hover:bg-white/5 hover:border-orange-200"
+              }`}
           >
             {area.label}
           </button>
@@ -135,11 +183,16 @@ export default function BookingPage() {
       {loading ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div key={n} className="h-80 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
+            <div
+              key={n}
+              className="h-80 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"
+            ></div>
           ))}
         </div>
       ) : error ? (
-        <div className="text-center text-red-600 bg-red-50 dark:bg-red-900/20 p-4 rounded-xl">{error}</div>
+        <div className="text-center text-red-600 bg-red-50 dark:bg-red-900/20 p-4 rounded-xl">
+          {error}
+        </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {data.map((table) => (
@@ -150,17 +203,26 @@ export default function BookingPage() {
               {/* Ảnh bàn */}
               <div className="relative h-56 overflow-hidden bg-gray-100 dark:bg-gray-800">
                 <img
-                  src={table.hinh_anh || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600"}
+                  src={
+                    table.hinh_anh ||
+                    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600"
+                  }
                   alt={table.ten_ban}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute top-3 right-3 z-10">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${getStatusColor(table.trang_thai)}`}>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${getStatusColor(
+                      table.trang_thai
+                    )}`}
+                  >
                     {getStatusText(table.trang_thai)}
                   </span>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                    <h3 className="text-xl font-bold text-white">{table.ten_ban || `Bàn số ${table.so_ban}`}</h3>
+                  <h3 className="text-xl font-bold text-white">
+                    {table.ten_ban || `Bàn số ${table.so_ban}`}
+                  </h3>
                 </div>
               </div>
 
@@ -174,13 +236,15 @@ export default function BookingPage() {
                   <div className="flex items-center gap-1.5">
                     <FaMapMarkerAlt className="text-orange-500" />
                     <span className="capitalize">
-                      {areas.find(a => a.value === table.khu_vuc)?.label || table.khu_vuc}
+                      {areas.find((a) => a.value === table.khu_vuc)?.label ||
+                        table.khu_vuc}
                     </span>
                   </div>
                 </div>
 
                 <p className="text-sm text-gray-500 dark:text-gray-500 mb-6 line-clamp-2 flex-1">
-                  {table.mo_ta || "Vị trí đẹp, không gian thoáng đãng, thích hợp cho nhóm bạn hoặc gia đình."}
+                  {table.mo_ta ||
+                    "Vị trí đẹp, không gian thoáng đãng, thích hợp cho nhóm bạn hoặc gia đình."}
                 </p>
 
                 {/* Khu vực nút hành động */}
@@ -198,15 +262,16 @@ export default function BookingPage() {
                   <button
                     disabled={table.trang_thai !== "available"}
                     onClick={() => handleBookTable(table)}
-                    className={`
-                      flex-1 py-3 rounded-xl font-bold transition-all duration-300 shadow-md text-sm
-                      ${table.trang_thai === "available"
-                        ? "bg-orange-600 text-white hover:bg-orange-700 hover:shadow-orange-600/40"
-                        : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none"
-                      }
-                    `}
+                    className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 shadow-md text-sm
+                      ${
+                        table.trang_thai === "available"
+                          ? "bg-orange-600 text-white hover:bg-orange-700 hover:shadow-orange-600/40"
+                          : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none"
+                      }`}
                   >
-                    {table.trang_thai === "available" ? "Đặt bàn ngay" : "Tạm thời không khả dụng"}
+                    {table.trang_thai === "available"
+                      ? "Đặt bàn ngay"
+                      : "Tạm thời không khả dụng"}
                   </button>
                 </div>
               </div>
@@ -216,21 +281,21 @@ export default function BookingPage() {
       )}
 
       {/* 4. Render Modals */}
-      
+
       {/* Modal Đặt Bàn */}
       <BookingFormModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         table={selectedTable}
+        prefill={prefill}          // ✅ TRUYỀN PREFILL TỪ CHATBOT
       />
 
-      {/* Modal Xem Lịch (Mới) */}
-      <TableScheduleModal 
+      {/* Modal Xem Lịch */}
+      <TableScheduleModal
         isOpen={isScheduleOpen}
         onClose={() => setIsScheduleOpen(false)}
         table={scheduleTable}
       />
-
     </div>
   );
 }

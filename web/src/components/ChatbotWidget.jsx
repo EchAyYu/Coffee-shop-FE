@@ -1,3 +1,4 @@
+// src/components/ChatbotWidget.jsx
 import { useState } from "react";
 import { FiMessageCircle, FiSend, FiX, FiCalendar } from "react-icons/fi";
 import { sendChatMessage } from "../api/chatbotApi";
@@ -39,7 +40,6 @@ export default function ChatbotWidget() {
       }));
 
       const res = await sendChatMessage(trimmed, historyForApi);
-      // console.log("Chatbot response:", res.data);
 
       const reply =
         res.data?.reply ||
@@ -49,6 +49,7 @@ export default function ChatbotWidget() {
 
       // Nếu BE trả kèm dữ liệu đặt bàn, lưu lại để hiển thị panel xác nhận
       if (res.data?.reservationData) {
+        console.log("reservationData từ chatbot:", res.data.reservationData);
         setPendingReservation(res.data.reservationData);
       }
     } catch (err) {
@@ -72,12 +73,14 @@ export default function ChatbotWidget() {
     }
   };
 
-  // Xác nhận đặt bàn từ dữ liệu AI
-  const handleConfirmReservationFromAI = async () => {
+  // ✅ ĐẶT BÀN NHANH – gọi thẳng API tạo reservation
+  const handleQuickReservationFromAI = async () => {
     if (!pendingReservation || confirmingReservation) return;
 
     try {
       setConfirmingReservation(true);
+      console.log("📤 GỬI YÊU CẦU ĐẶT BÀN TỪ CHATBOT:", pendingReservation);
+
       await createReservationFromChat(pendingReservation);
 
       setMessages((prev) => [
@@ -105,6 +108,26 @@ export default function ChatbotWidget() {
     } finally {
       setConfirmingReservation(false);
     }
+  };
+
+  // ✅ ĐI TỚI FORM ĐẶT BÀN – mở trang /booking với query prefill
+  const handleGoToBookingForm = () => {
+    if (!pendingReservation) return;
+
+    const params = new URLSearchParams({
+      fromChatbot: "1",
+      name: pendingReservation.name || "",
+      phone: pendingReservation.phone || "",
+      date: pendingReservation.date || "",
+      time: pendingReservation.time || "",
+      people: String(pendingReservation.people || 1),
+      note: pendingReservation.note || "",
+    });
+
+    console.log("➡️ Chuyển sang BookingPage với:", pendingReservation);
+
+    // chỉnh lại path nếu trang đặt bàn của bạn không phải là /booking
+    window.location.href = `/booking?${params.toString()}`;
   };
 
   return (
@@ -203,7 +226,7 @@ export default function ChatbotWidget() {
                   </div>
                 )}
 
-                <div className="pt-1 flex justify-end gap-2">
+                <div className="pt-1 flex flex-wrap justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setPendingReservation(null)}
@@ -211,13 +234,26 @@ export default function ChatbotWidget() {
                   >
                     Hủy
                   </button>
+
+                  {/* Đi tới form đặt bàn đầy đủ */}
+                  <button
+                    type="button"
+                    onClick={handleGoToBookingForm}
+                    className="px-2 py-1 rounded-md bg-white text-blue-600 border border-blue-400 font-semibold hover:bg-blue-50"
+                  >
+                    Đi tới form đặt bàn
+                  </button>
+
+                  {/* Đặt bàn nhanh – giữ flow cũ */}
                   <button
                     type="button"
                     disabled={confirmingReservation}
-                    onClick={handleConfirmReservationFromAI}
+                    onClick={handleQuickReservationFromAI}
                     className="px-2 py-1 rounded-md bg-blue-600 text-white font-semibold disabled:opacity-60"
                   >
-                    {confirmingReservation ? "Đang gửi..." : "Xác nhận gửi quán"}
+                    {confirmingReservation
+                      ? "Đang gửi..."
+                      : "Gửi nhanh cho quán"}
                   </button>
                 </div>
               </div>
