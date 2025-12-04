@@ -10,8 +10,7 @@ import AdminLogin from "./AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
 import AdminVouchersPage from "./AdminVouchersPage";
 import AdminReviewsPage from "./AdminReviewsPage";
-
-// 💡 1. IMPORT CÁC FILE MỚI
+import AdminPromotions from "./AdminPromotions";
 import AdminEmployees from "./AdminEmployees";
 import AdminRoleGuard from "./AdminRoleGuard";
 
@@ -33,13 +32,14 @@ export default function AdminIndex() {
           
           {/* 💡 4. ROUTE CHỈ ADMIN (Được bảo vệ bằng RoleGuard) */}
           <Route element={<AdminRoleGuard allowedRoles={['admin']} />}>
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="reviews" element={<AdminReviewsPage />} />
-            <Route path="tables" element={<AdminTables />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="vouchers" element={<AdminVouchersPage />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="reviews" element={<AdminReviewsPage />} />
+            <Route path="tables" element={<AdminTables />} />
+            <Route path="customers" element={<AdminCustomers />} />
+            <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="employees" element={<AdminEmployees />} />
+            <Route path="promotions" element={<AdminPromotions />} />  
           </Route>
 
           {/* Mọi route không khớp sẽ quay về trang mặc định */}

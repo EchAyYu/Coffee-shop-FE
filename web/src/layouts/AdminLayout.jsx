@@ -16,17 +16,18 @@ export default function AdminLayout() {
   };
 
   // 💡 4. Cấu hình Menu (thêm `roles` để phân quyền)
-  const navItems = [
-    { name: "Dashboard", path: "/admin/dashboard", roles: ["admin"] },
-    { name: "Sản phẩm", path: "/admin/products", roles: ["admin"] },
-    { name: "Đơn hàng", path: "/admin/orders", roles: ["admin", "employee"] },
-    { name: "Đặt bàn", path: "/admin/reservations", roles: ["admin", "employee"] },
-    { name: "Đánh giá", path: "/admin/reviews", roles: ["admin"] },
-    { name: "Bàn", path: "/admin/tables", roles: ["admin"] },
-    { name: "Khách hàng", path: "/admin/customers", roles: ["admin"] },
-    { name: "Voucher", path: "/admin/vouchers", roles: ["admin"] },
-    { name: "Nhân viên", path: "/admin/employees", roles: ["admin"] },
-  ];
+const navItems = [
+  { name: "Dashboard", path: "/admin/dashboard", roles: ["admin"] },
+  { name: "Sản phẩm", path: "/admin/products", roles: ["admin"] },
+  { name: "Đơn hàng", path: "/admin/orders", roles: ["admin", "employee"] },
+  { name: "Đặt bàn", path: "/admin/reservations", roles: ["admin", "employee"] },
+  { name: "Đánh giá", path: "/admin/reviews", roles: ["admin"] },
+  { name: "Bàn", path: "/admin/tables", roles: ["admin"] },
+  { name: "Khách hàng", path: "/admin/customers", roles: ["admin"] },
+  { name: "Voucher", path: "/admin/vouchers", roles: ["admin"] },
+  { name: "Nhân viên", path: "/admin/employees", roles: ["admin"] },
+  { name: "Khuyến mãi", path: "/admin/promotions", roles: ["admin"] },
+];
   
   // 💡 6. Lọc ra các menu mà user này được phép xem
   const allowedNavItems = navItems.filter(item => 

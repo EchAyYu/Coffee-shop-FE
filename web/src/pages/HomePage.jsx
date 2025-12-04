@@ -99,7 +99,9 @@ export default function HomePage() {
 
   const handlePrevPromo = () => {
     if (!promoList.length) return;
-    setCurrentPromoIndex((prev) => (prev - 1 + promoList.length) % promoList.length);
+    setCurrentPromoIndex(
+      (prev) => (prev - 1 + promoList.length) % promoList.length
+    );
   };
 
   const handleNextPromo = () => {
@@ -109,6 +111,27 @@ export default function HomePage() {
 
   const currentPromo =
     promoList.length > 0 ? promoList[currentPromoIndex] : null;
+
+  // Cấu hình nút CTA cho từng khuyến mãi
+  const getPromoButtonConfig = (promo) => {
+    if (!promo) return { text: "Xem chi tiết", link: "/menu" };
+
+    // Ưu tiên dùng cấu hình từ DB nếu có
+    if (promo.button_text || promo.button_link) {
+      return {
+        text: promo.button_text || "Xem chi tiết khuyến mãi",
+        link: promo.button_link || "/menu",
+      };
+    }
+
+    // Heuristic fallback nếu chưa cấu hình
+    const title = (promo.ten_km || "").toLowerCase();
+    if (title.includes("đăng ký") || title.includes("khách hàng mới")) {
+      return { text: "Đăng ký ngay", link: "/register" };
+    }
+
+    return { text: "Xem menu ưu đãi", link: "/menu" };
+  };
 
   return (
     <div className="space-y-20 pb-10">
@@ -245,55 +268,83 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <div
-                key={product.id_mon}
-                className="bg-white dark:bg-[#1E1E1E] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 dark:border-gray-800 transition-all group flex flex-col h-full"
-              >
-                {/* Ảnh sản phẩm */}
-                <div className="relative h-56 overflow-hidden bg-gray-100 dark:bg-gray-800">
-                  <img
-                    src={
-                      product.anh ||
-                      "https://placehold.co/300x300?text=No+Image"
-                    }
-                    alt={product.ten_mon}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  {/* Badge rating */}
-                  <div className="absolute top-3 right-3 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm">
-                    <FaStar className="text-yellow-400" />{" "}
-                    {product.rating_avg || "5.0"}
+            {featuredProducts.map((product) => {
+              const finalPrice =
+                product.gia_km != null && product.gia_km < product.gia
+                  ? product.gia_km
+                  : product.gia;
+              const hasDiscount =
+                product.gia_km != null && product.gia_km < product.gia;
+              const promoInfo = product.khuyen_mai_ap_dung;
+
+              return (
+                <div
+                  key={product.id_mon}
+                  className="bg-white dark:bg-[#1E1E1E] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 dark:border-gray-800 transition-all group flex flex-col h-full"
+                >
+                  {/* Ảnh sản phẩm */}
+                  <div className="relative h-56 overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    <img
+                      src={
+                        product.anh ||
+                        "https://placehold.co/300x300?text=No+Image"
+                      }
+                      alt={product.ten_mon}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    {/* Badge rating */}
+                    <div className="absolute top-3 right-3 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm">
+                      <FaStar className="text-yellow-400" />{" "}
+                      {product.rating_avg || "5.0"}
+                    </div>
+
+                    {/* Badge khuyến mãi */}
+                    {hasDiscount && (
+                      <div className="absolute top-3 left-3 bg-orange-500 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow">
+                        {promoInfo?.loai_km === "FIXED_PRICE"
+                          ? "Đồng giá"
+                          : promoInfo?.pt_giam
+                          ? `Giảm ${promoInfo.pt_giam}%`
+                          : "Đang khuyến mãi"}
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                {/* Thông tin */}
-                <div className="p-5 flex flex-col flex-1">
-                  <h3
-                    className="font-bold text-lg text-gray-800 dark:text-white mb-1 line-clamp-1"
-                    title={product.ten_mon}
-                  >
-                    {product.ten_mon}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2 flex-1">
-                    {product.mo_ta || "Hương vị tuyệt hảo..."}
-                  </p>
-
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-lg font-bold text-orange-600">
-                      {formatCurrency(product.gia)}
-                    </span>
-                    <button
-                      onClick={() => addToCart(product)}
-                      className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-orange-600 hover:text-white dark:hover:bg-orange-600 grid place-items-center transition-colors shadow-sm"
-                      title="Thêm vào giỏ"
+                  {/* Thông tin */}
+                  <div className="p-5 flex flex-col flex-1">
+                    <h3
+                      className="font-bold text-lg text-gray-800 dark:text-white mb-1 line-clamp-1"
+                      title={product.ten_mon}
                     >
-                      <FaShoppingCart />
-                    </button>
+                      {product.ten_mon}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2 flex-1">
+                      {product.mo_ta || "Hương vị tuyệt hảo..."}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex flex-col items-start">
+                        <span className="text-lg font-bold text-orange-600">
+                          {formatCurrency(finalPrice)}
+                        </span>
+                        {hasDiscount && (
+                          <span className="text-xs text-gray-400 line-through">
+                            {formatCurrency(product.gia)}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => addToCart(product)}
+                        className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-orange-600 hover:text-white dark:hover:bg-orange-600 grid place-items-center transition-colors shadow-sm"
+                        title="Thêm vào giỏ"
+                      >
+                        <FaShoppingCart />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -353,12 +404,18 @@ export default function HomePage() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-3">
-              <Link
-                to="/menu"
-                className="px-8 py-4 bg-white text-orange-800 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform inline-block"
-              >
-                Xem menu ưu đãi
-              </Link>
+              {(() => {
+                const { text: promoBtnText, link: promoBtnLink } =
+                  getPromoButtonConfig(currentPromo);
+                return (
+                  <Link
+                    to={promoBtnLink}
+                    className="px-8 py-4 bg-white text-orange-800 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform inline-block"
+                  >
+                    {promoBtnText}
+                  </Link>
+                );
+              })()}
 
               {/* Chỉ hiển thị nếu có nhiều hơn 1 khuyến mãi */}
               {promoList.length > 1 && (
@@ -391,6 +448,29 @@ export default function HomePage() {
                 >
                   <FaChevronRight />
                 </button>
+              </div>
+            )}
+
+            {/* Danh sách tất cả khuyến mãi dạng "chip" để chuyển nhanh */}
+            {promoList.length > 1 && (
+              <div className="absolute -bottom-14 left-0 right-0 flex flex-wrap gap-2 justify-center">
+                {promoList.map((promo, idx) => (
+                  <button
+                    key={promo.id_km ?? idx}
+                    type="button"
+                    onClick={() => setCurrentPromoIndex(idx)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                      idx === currentPromoIndex
+                        ? "bg-white text-orange-800 border-white"
+                        : "bg-white/10 text-orange-100 border-white/30 hover:bg-white/20"
+                    }`}
+                    title={`${promo.ten_km} (${formatDate(
+                      promo.ngay_bd
+                    )} - ${formatDate(promo.ngay_kt)})`}
+                  >
+                    {promo.ten_km}
+                  </button>
+                ))}
               </div>
             )}
           </div>

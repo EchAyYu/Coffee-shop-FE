@@ -233,16 +233,35 @@ export const uploadImage = async (file) => {
 // =====================
 // 🔹 PROMOTIONS (Admin)
 // =====================
-export const promotions = {
-  // ✅ Đã dùng đúng adminApi
-  getAllForAdmin: () => adminApi.get("/admin/promotions"), 
 
-  create: (data) => adminApi.post("/promotions", data),
-  update: (id, data) => adminApi.put(`/promotions/${id}`, data),
-  delete: (id) => adminApi.delete(`/promotions/${id}`),
+// Object dùng nội bộ cho admin
+export const adminPromotions = {
+  // Lấy danh sách khuyến mãi (Admin)
+  getAll:   (params)      => adminApi.get("/admin/promotions", { params }),
 
-  // Bạn có thể thêm lại hàm public nếu cần (dùng adminApi nếu admin cũng cần)
-  getPublic: () => adminApi.get("/promotions"), 
+  // Tạo mới khuyến mãi (Admin)
+  create:   (data)        => adminApi.post("/admin/promotions", data),
+
+  // Cập nhật khuyến mãi (Admin)
+  update:   (id, data)    => adminApi.put(`/admin/promotions/${id}`, data),
+
+  // Xóa khuyến mãi (Admin)
+  delete:   (id)          => adminApi.delete(`/admin/promotions/${id}`),
 };
+
+// Các hàm đúng tên mà AdminPromotions.jsx đang import
+export const getAdminPromotions = (params) =>
+  adminPromotions.getAll(params);
+
+export const createAdminPromotion = (data) =>
+  adminPromotions.create(data);
+
+export const updateAdminPromotion = (id, data) =>
+  adminPromotions.update(id, data);
+
+export const deleteAdminPromotion = (id) =>
+  adminPromotions.delete(id);
+
+// (Giữ nguyên export default ở cuối file)
 export default adminApi;
 
