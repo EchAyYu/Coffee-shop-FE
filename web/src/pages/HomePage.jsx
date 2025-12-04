@@ -8,9 +8,11 @@ import {
   FaLeaf,
   FaAward,
   FaMugHot,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 
-import { getProducts } from "../api/api";
+import { getProducts, promotions } from "../api/api";
 import { useCart } from "../components/CartContext";
 
 // Helper định dạng tiền
@@ -20,11 +22,26 @@ const formatCurrency = (value) =>
     currency: "VND",
   }).format(value);
 
+// Helper định dạng ngày
+const formatDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("vi-VN");
+};
+
 export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ---- STATE KHUYẾN MÃI ----
+  const [promoList, setPromoList] = useState([]);
+  const [promoLoading, setPromoLoading] = useState(true);
+  const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+
   const { addToCart } = useCart();
 
+  // Lấy sản phẩm nổi bật
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
@@ -44,6 +61,54 @@ export default function HomePage() {
 
     fetchFeatured();
   }, []);
+
+  // Lấy khuyến mãi đang chạy (từ BE)
+  useEffect(() => {
+    const fetchPromotions = async () => {
+      setPromoLoading(true);
+      try {
+        const res = await promotions.getPublic();
+        const list = Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
+        setPromoList(list);
+        setCurrentPromoIndex(0);
+      } catch (error) {
+        console.error("Lỗi tải khuyến mãi:", error);
+        setPromoList([]);
+      } finally {
+        setPromoLoading(false);
+      }
+    };
+
+    fetchPromotions();
+  }, []);
+
+  // Auto slide khuyến mãi
+  useEffect(() => {
+    if (promoList.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentPromoIndex((prev) => (prev + 1) % promoList.length);
+    }, 8000); // 8s đổi 1 khuyến mãi
+
+    return () => clearInterval(interval);
+  }, [promoList]);
+
+  const handlePrevPromo = () => {
+    if (!promoList.length) return;
+    setCurrentPromoIndex((prev) => (prev - 1 + promoList.length) % promoList.length);
+  };
+
+  const handleNextPromo = () => {
+    if (!promoList.length) return;
+    setCurrentPromoIndex((prev) => (prev + 1) % promoList.length);
+  };
+
+  const currentPromo =
+    promoList.length > 0 ? promoList[currentPromoIndex] : null;
 
   return (
     <div className="space-y-20 pb-10">
@@ -243,32 +308,114 @@ export default function HomePage() {
       </section>
 
       {/* =========================================
-          🎁 4. BANNER KHUYẾN MÃI TĨNH
-          (thay cho dynamic promotions)
+          🎁 4. BANNER KHUYẾN MÃI ĐỘNG
       ========================================= */}
       <section className="px-4 max-w-6xl mx-auto">
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-amber-700 to-orange-900 text-white p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-2xl">
-          <div className="relative z-10 mb-6 md:mb-0 md:w-2/3">
-            <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block">
-              Khuyến mãi đặc biệt
-            </span>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Giảm ngay 20% cho đơn hàng đầu tiên!
-            </h2>
-            <p className="text-orange-100 text-lg mb-0">
-              Đăng ký thành viên ngay hôm nay để nhận ưu đãi và tích điểm
-              đổi quà.
-            </p>
+        {promoLoading ? (
+          // Loading skeleton
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-amber-700 to-orange-900 text-white p-8 md:p-12 shadow-2xl animate-pulse h-48" />
+        ) : currentPromo ? (
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-amber-700 to-orange-900 text-white p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-2xl">
+            <div className="relative z-10 mb-6 md:mb-0 md:w-2/3">
+              <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block">
+                Khuyến mãi đặc biệt
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">
+                {currentPromo.ten_km}
+              </h2>
+
+              <p className="text-orange-100 text-lg mb-2">
+                Giảm{" "}
+                <span className="font-extrabold">
+                  {currentPromo.pt_giam}%
+                </span>{" "}
+                cho đơn hàng phù hợp.
+              </p>
+
+              {currentPromo.mo_ta && (
+                <p className="text-orange-100/90 text-sm md:text-base mb-2">
+                  {currentPromo.mo_ta}
+                </p>
+              )}
+
+              {(currentPromo.ngay_bd || currentPromo.ngay_kt) && (
+                <p className="text-orange-200 text-sm">
+                  Áp dụng từ{" "}
+                  <span className="font-semibold">
+                    {formatDate(currentPromo.ngay_bd)}
+                  </span>{" "}
+                  đến{" "}
+                  <span className="font-semibold">
+                    {formatDate(currentPromo.ngay_kt)}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center gap-3">
+              <Link
+                to="/menu"
+                className="px-8 py-4 bg-white text-orange-800 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform inline-block"
+              >
+                Xem menu ưu đãi
+              </Link>
+
+              {/* Chỉ hiển thị nếu có nhiều hơn 1 khuyến mãi */}
+              {promoList.length > 1 && (
+                <div className="flex items-center gap-2 text-xs text-orange-100/80">
+                  {promoList.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`w-2 h-2 rounded-full ${
+                        idx === currentPromoIndex
+                          ? "bg-white"
+                          : "bg-white/40"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {promoList.length > 1 && (
+              <div className="absolute bottom-4 right-6 flex items-center gap-2">
+                <button
+                  onClick={handlePrevPromo}
+                  className="w-8 h-8 rounded-full bg-white/20 backdrop-blur border border-white/40 flex items-center justify-center hover:bg-white/40 transition-colors"
+                >
+                  <FaChevronLeft />
+                </button>
+                <button
+                  onClick={handleNextPromo}
+                  className="w-8 h-8 rounded-full bg-white/20 backdrop-blur border border-white/40 flex items-center justify-center hover:bg-white/40 transition-colors"
+                >
+                  <FaChevronRight />
+                </button>
+              </div>
+            )}
           </div>
-          <div className="relative z-10">
+        ) : (
+          // Không có khuyến mãi đang chạy -> banner thông báo
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-slate-500 to-slate-700 text-white p-8 md:p-12 flex items-center justify-between shadow-2xl">
+            <div>
+              <span className="bg-black/30 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block">
+                Khuyến mãi
+              </span>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                Hiện chưa có khuyến mãi đang diễn ra
+              </h2>
+              <p className="text-slate-100 text-sm md:text-base">
+                Hãy quay lại sau hoặc xem menu để chọn món yêu thích của bạn.
+              </p>
+            </div>
             <Link
-              to="/register"
-              className="px-8 py-4 bg-white text-orange-800 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-transform inline-block"
+              to="/menu"
+              className="px-8 py-3 bg-white text-slate-800 font-bold rounded-full shadow-lg hover:bg-slate-100 hover:scale-105 transition-transform inline-block"
             >
-              Đăng ký ngay
+              Xem Menu
             </Link>
           </div>
-        </div>
+        )}
       </section>
     </div>
   );
