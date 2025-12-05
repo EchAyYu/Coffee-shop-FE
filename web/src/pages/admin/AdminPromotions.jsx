@@ -9,32 +9,35 @@ import {
   getProducts,
 } from "../../api/adminApi";
 
+// ----- FORM RỖNG -----
 const emptyForm = {
   id_km: null,
   ten_km: "",
   mo_ta: "",
   hinh_anh: "",
 
-  // ----- LOẠI KHUYẾN MÃI / PHẠM VI -----
-  loai_km: "PERCENT",       // "PERCENT" | "FIXED_PRICE"
-  pt_giam: 10,              // % nếu PERCENT
-  gia_dong: "",             // giá đồng nếu FIXED_PRICE
+  // Loại / giá
+  loai_km: "PERCENT", // "PERCENT" | "FIXED_PRICE"
+  pt_giam: 10,
+  gia_dong: "",
 
-  target_type: "ALL",       // "ALL" | "CATEGORY" | "PRODUCT"
+  // Phạm vi
+  target_type: "ALL", // "ALL" | "CATEGORY" | "PRODUCT"
   id_danh_muc: "",
   id_mon: "",
+  productIds: [],
 
-  // ----- THỜI GIAN -----
+  // Thời gian
   ngay_bd: "",
   ngay_kt: "",
-  lap_lai_thu: "",          // 1–7 hoặc ""
+  lap_lai_thu: "",
   gio_bd: "",
   gio_kt: "",
 
-  // ----- HIỂN THỊ / CTA -----
+  // Hiển thị / CTA
   hien_thi: true,
   button_text: "",
-  button_link: "",          // nếu để trống -> FE tự chọn
+  button_link: "",
 };
 
 const weekdayOptions = [
@@ -81,7 +84,6 @@ export default function AdminPromotions() {
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ dữ liệu từ DB
   const [categories, setCategories] = useState([]);
   const [products, setProductsState] = useState([]);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -92,7 +94,7 @@ export default function AdminPromotions() {
   const [isEdit, setIsEdit] = useState(false);
   const [error, setError] = useState("");
 
-  // ========== LOAD PROMOTIONS ==========
+  // ================== LOAD PROMOTIONS ==================
   const fetchPromotions = async () => {
     setLoading(true);
     setError("");
@@ -112,13 +114,13 @@ export default function AdminPromotions() {
     }
   };
 
-  // ========== LOAD CATEGORIES + PRODUCTS ==========
+  // ================== LOAD CATEGORIES + PRODUCTS ==================
   const fetchMeta = async () => {
     setMetaLoading(true);
     try {
       const [catRes, prodRes] = await Promise.all([
         getCategories(),
-        getProducts(), // không truyền params -> lấy tất cả
+        getProducts({ limit: 100 }), // lấy đủ menu cho admin chọn
       ]);
 
       const cats = Array.isArray(catRes.data?.data)
@@ -147,7 +149,7 @@ export default function AdminPromotions() {
     fetchMeta();
   }, []);
 
-  // ========== MODAL HANDLERS ==========
+  // ================== MODAL HANDLERS ==================
   const openCreateModal = () => {
     setForm(emptyForm);
     setIsEdit(false);
@@ -169,6 +171,14 @@ export default function AdminPromotions() {
       target_type: promo.target_type || "ALL",
       id_danh_muc: promo.id_danh_muc || "",
       id_mon: promo.id_mon || "",
+
+      // nếu BE trả productIds thì dùng, nếu không fallback từ id_mon
+      productIds:
+        Array.isArray(promo.productIds) && promo.productIds.length > 0
+          ? promo.productIds
+          : promo.id_mon
+          ? [promo.id_mon]
+          : [],
 
       ngay_bd: toInputDate(promo.ngay_bd),
       ngay_kt: toInputDate(promo.ngay_kt),
@@ -192,9 +202,9 @@ export default function AdminPromotions() {
     setError("");
   };
 
-  // ========== FORM CHANGE ==========
+  // ================== FORM CHANGE ==================
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, checked } = e.target;
 
     if (name === "hien_thi") {
       setForm((prev) => ({ ...prev, hien_thi: checked }));
@@ -207,7 +217,10 @@ export default function AdminPromotions() {
     }
 
     if (name === "gia_dong") {
-      setForm((prev) => ({ ...prev, gia_dong: value === "" ? "" : Number(value) || 0 }));
+      setForm((prev) => ({
+        ...prev,
+        gia_dong: value === "" ? "" : Number(value) || 0,
+      }));
       return;
     }
 
@@ -219,28 +232,28 @@ export default function AdminPromotions() {
       return;
     }
 
-    if (name === "id_danh_muc" || name === "id_mon") {
+    if (name === "id_danh_muc") {
       setForm((prev) => ({
         ...prev,
-        [name]: value === "" ? "" : Number(value),
+        id_danh_muc: value === "" ? "" : Number(value),
       }));
       return;
     }
 
     if (name === "target_type") {
-      // Khi đổi phạm vi -> reset id liên quan
+      // đổi phạm vi -> reset id + list món
       setForm((prev) => ({
         ...prev,
         target_type: value,
-        id_danh_muc: value === "CATEGORY" ? prev.id_danh_muc : "",
-        id_mon: value === "PRODUCT" ? prev.id_mon : "",
+        id_danh_muc: "",
+        id_mon: "",
+        productIds: [],
       }));
       return;
     }
 
     if (name === "button_link_select") {
       if (value === "__custom__") {
-        // Giữ nguyên form.button_link để user tự gõ
         setForm((prev) => ({ ...prev }));
       } else {
         setForm((prev) => ({ ...prev, button_link: value }));
@@ -249,6 +262,18 @@ export default function AdminPromotions() {
     }
 
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // chọn/bỏ chọn 1 món
+  const toggleProductInForm = (id_mon) => {
+    setForm((prev) => {
+      const exists = prev.productIds.includes(id_mon);
+      const productIds = exists
+        ? prev.productIds.filter((id) => id !== id_mon)
+        : [...prev.productIds, id_mon];
+
+      return { ...prev, productIds };
+    });
   };
 
   // value cho select CTA
@@ -261,38 +286,43 @@ export default function AdminPromotions() {
     return "__custom__";
   })();
 
-  // ========== SUBMIT ==========
+  // ================== SUBMIT ==================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
 
     try {
-    const payload = {
-      ten_km: form.ten_km,
-      mo_ta: form.mo_ta,
-      hinh_anh: form.hinh_anh,
+      const payload = {
+        ten_km: form.ten_km,
+        mo_ta: form.mo_ta,
+        hinh_anh: form.hinh_anh,
 
-      loai_km: form.loai_km,
-      // FIX: nếu là đồng giá thì cho pt_giam = 0 để không vi phạm NOT NULL
-      pt_giam: form.loai_km === "PERCENT" ? form.pt_giam : 0,
-      gia_dong: form.loai_km === "FIXED_PRICE" ? form.gia_dong : null,
+        loai_km: form.loai_km,
+        pt_giam: form.loai_km === "PERCENT" ? form.pt_giam : 0,
+        gia_dong: form.loai_km === "FIXED_PRICE" ? form.gia_dong : null,
 
-      target_type: form.target_type,
-      id_danh_muc:
-        form.target_type === "CATEGORY" ? form.id_danh_muc || null : null,
-      id_mon: form.target_type === "PRODUCT" ? form.id_mon || null : null,
+        target_type: form.target_type,
+        id_danh_muc:
+          form.target_type === "CATEGORY" ? form.id_danh_muc || null : null,
 
-      ngay_bd: form.ngay_bd,
-      ngay_kt: form.ngay_kt,
-      lap_lai_thu: form.lap_lai_thu === "" ? null : form.lap_lai_thu,
-      gio_bd: form.gio_bd || null,
-      gio_kt: form.gio_kt || null,
+        id_mon:
+          form.target_type === "PRODUCT" && form.productIds.length === 1
+            ? form.productIds[0]
+            : null,
+        productIds:
+          form.target_type === "PRODUCT" ? form.productIds : undefined,
 
-      hien_thi: form.hien_thi,
-      button_text: form.button_text || null,
-      button_link: form.button_link || null,
-    };
+        ngay_bd: form.ngay_bd,
+        ngay_kt: form.ngay_kt,
+        lap_lai_thu: form.lap_lai_thu === "" ? null : form.lap_lai_thu,
+        gio_bd: form.gio_bd || null,
+        gio_kt: form.gio_kt || null,
+
+        hien_thi: form.hien_thi,
+        button_text: form.button_text || null,
+        button_link: form.button_link || null,
+      };
 
       if (isEdit && form.id_km != null) {
         await updateAdminPromotion(form.id_km, payload);
@@ -389,7 +419,9 @@ export default function AdminPromotions() {
                     </td>
                     <td className="px-4 py-3 align-top text-xs text-gray-700 dark:text-gray-300">
                       {promo.loai_km === "FIXED_PRICE"
-                        ? `Đồng giá ${promo.gia_dong?.toLocaleString("vi-VN")}₫`
+                        ? `Đồng giá ${promo.gia_dong?.toLocaleString(
+                            "vi-VN"
+                          )}₫`
                         : `Giảm ${promo.pt_giam}%`}
                     </td>
                     <td className="px-4 py-3 align-top text-xs text-gray-700 dark:text-gray-300">
@@ -397,7 +429,12 @@ export default function AdminPromotions() {
                       {promo.target_type === "CATEGORY" &&
                         `Danh mục #${promo.id_danh_muc}`}
                       {promo.target_type === "PRODUCT" &&
-                        `Món #${promo.id_mon}`}
+                        `Theo món (${
+                          Array.isArray(promo.productIds) &&
+                          promo.productIds.length > 1
+                            ? `${promo.productIds.length} món`
+                            : `id_mon: ${promo.id_mon || "nhiều"}`
+                        })`}
                     </td>
                     <td className="px-4 py-3 align-top text-xs text-gray-700 dark:text-gray-300">
                       {formatDate(promo.ngay_bd)} - {formatDate(promo.ngay_kt)}
@@ -451,338 +488,379 @@ export default function AdminPromotions() {
         )}
       </div>
 
-      {/* Modal tạo/sửa khuyến mãi */}
+      {/* Modal tạo/sửa khuyến mãi - Style A: 2 cột ngang */}
       {isModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl shadow-xl w-full max-w-2xl p-6 relative">
+          <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl shadow-xl w-full max-w-5xl p-6 relative">
             <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-50">
               {isEdit ? "Chỉnh sửa khuyến mãi" : "Thêm khuyến mãi mới"}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Tên + Mô tả */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Tên khuyến mãi <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="ten_km"
-                  value={form.ten_km}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  placeholder="VD: Thứ 6 đồng giá 20K, Giảm 20% đơn đầu tiên..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Mô tả
-                </label>
-                <textarea
-                  name="mo_ta"
-                  value={form.mo_ta}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm resize-none"
-                  placeholder="Thông tin chi tiết về chương trình khuyến mãi..."
-                />
-              </div>
-
-              {/* Loại khuyến mãi + Giá / % */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Loại khuyến mãi
-                  </label>
-                  <select
-                    name="loai_km"
-                    value={form.loai_km}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  >
-                    <option value="PERCENT">Giảm theo %</option>
-                    <option value="FIXED_PRICE">Đồng giá (VND)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    {form.loai_km === "FIXED_PRICE"
-                      ? "Giá đồng (VND) *"
-                      : "Phần trăm giảm (%) *"}
-                  </label>
-                  {form.loai_km === "FIXED_PRICE" ? (
+              {/* Layout 2 cột ngang */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Cột trái: thông tin cơ bản + loại KM + thời gian */}
+                <div className="space-y-4">
+                  {/* Tên + mô tả */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Tên khuyến mãi <span className="text-red-500">*</span>
+                    </label>
                     <input
-                      type="number"
-                      name="gia_dong"
-                      min={0}
-                      value={form.gia_dong}
+                      type="text"
+                      name="ten_km"
+                      value={form.ten_km}
                       onChange={handleChange}
                       required
                       className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                      placeholder="VD: 20000"
+                      placeholder="VD: Thứ 6 đồng giá 20K, Giảm 20% đơn đầu tiên..."
                     />
-                  ) : (
-                    <input
-                      type="number"
-                      name="pt_giam"
-                      min={1}
-                      max={100}
-                      value={form.pt_giam}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Mô tả
+                    </label>
+                    <textarea
+                      name="mo_ta"
+                      value={form.mo_ta}
                       onChange={handleChange}
-                      required
-                      className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      rows={4}
+                      className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm resize-none"
+                      placeholder="Thông tin chi tiết về chương trình khuyến mãi..."
                     />
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Phạm vi áp dụng + ID danh mục/món (dropdown từ DB) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Phạm vi áp dụng
-                  </label>
-                  <select
-                    name="target_type"
-                    value={form.target_type}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  >
-                    <option value="ALL">Tất cả menu</option>
-                    <option value="CATEGORY">Theo danh mục</option>
-                    <option value="PRODUCT">Theo món cụ thể</option>
-                  </select>
-                </div>
-
-                {/* ID danh mục / món áp dụng */}
-                <div>
-                  {form.target_type === "CATEGORY" && (
-                    <>
+                  {/* Loại khuyến mãi + giá / % */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                        Danh mục áp dụng
-                      </label>
-                     <select
-                      name="id_danh_muc"
-                      value={form.id_danh_muc || ""}
-                      onChange={handleChange}
-                      disabled={metaLoading}
-                      size={Math.min(categories.length || 1, 6)} // hiện tối đa 6 dòng, có scrollbar
-                      className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm max-h-60 overflow-y-auto"
-                    >
-                      <option value="">-- Chọn danh mục --</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id_dm} value={cat.id_dm}>
-                          #{cat.id_dm} — {cat.ten_dm}
-                        </option>
-                      ))}
-                    </select>
-                    </>
-                  )}
-
-                  {form.target_type === "PRODUCT" && (
-                    <>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                        Món áp dụng
+                        Loại khuyến mãi
                       </label>
                       <select
-                        name="id_mon"
-                        value={form.id_mon || ""}
+                        name="loai_km"
+                        value={form.loai_km}
                         onChange={handleChange}
-                        disabled={metaLoading}
-                        size={Math.min(products.length || 1, 8)} // hiện tối đa 8 món, cuộn được
-                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm max-h-72 overflow-y-auto"
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
                       >
-                        <option value="">-- Chọn món --</option>
-                        {products.map((p) => (
-                          <option key={p.id_mon} value={p.id_mon}>
-                            #{p.id_mon} — {p.ten_mon}
+                        <option value="PERCENT">Giảm theo %</option>
+                        <option value="FIXED_PRICE">Đồng giá (VND)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        {form.loai_km === "FIXED_PRICE"
+                          ? "Giá đồng (VND) *"
+                          : "Phần trăm giảm (%) *"}
+                      </label>
+                      {form.loai_km === "FIXED_PRICE" ? (
+                        <input
+                          type="number"
+                          name="gia_dong"
+                          min={0}
+                          value={form.gia_dong}
+                          onChange={handleChange}
+                          required
+                          className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                          placeholder="VD: 20000"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          name="pt_giam"
+                          min={1}
+                          max={100}
+                          value={form.pt_giam}
+                          onChange={handleChange}
+                          required
+                          className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ngày + lặp lại + giờ */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Ngày bắt đầu <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        name="ngay_bd"
+                        value={form.ngay_bd}
+                        onChange={handleChange}
+                        required
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Ngày kết thúc <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        name="ngay_kt"
+                        value={form.ngay_kt}
+                        onChange={handleChange}
+                        required
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Lặp lại theo thứ
+                      </label>
+                      <select
+                        name="lap_lai_thu"
+                        value={form.lap_lai_thu}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      >
+                        {weekdayOptions.map((opt) => (
+                          <option key={opt.value ?? "all"} value={opt.value}>
+                            {opt.label}
                           </option>
                         ))}
                       </select>
-                    </>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Để trống hoặc chọn “Áp dụng tất cả các ngày” nếu
+                        khuyến mãi áp dụng mọi ngày trong khoảng thời gian.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Giờ bắt đầu
+                      </label>
+                      <input
+                        type="time"
+                        name="gio_bd"
+                        value={form.gio_bd}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Giờ kết thúc
+                      </label>
+                      <input
+                        type="time"
+                        name="gio_kt"
+                        value={form.gio_kt}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Nếu để trống, khuyến mãi áp dụng cả ngày.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cột phải: phạm vi + chọn món/danh mục + ảnh + CTA + hiển thị */}
+                <div className="space-y-4">
+                  {/* Phạm vi áp dụng */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Phạm vi áp dụng
+                    </label>
+                    <select
+                      name="target_type"
+                      value={form.target_type}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                    >
+                      <option value="ALL">Tất cả menu</option>
+                      <option value="CATEGORY">Theo danh mục</option>
+                      <option value="PRODUCT">Theo món cụ thể</option>
+                    </select>
+                  </div>
+
+                  {/* Danh mục */}
+                  {form.target_type === "CATEGORY" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Danh mục áp dụng
+                      </label>
+                      <select
+                        name="id_danh_muc"
+                        value={form.id_danh_muc || ""}
+                        onChange={handleChange}
+                        disabled={metaLoading}
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                      >
+                        <option value="">-- Chọn danh mục --</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id_dm} value={cat.id_dm}>
+                            #{cat.id_dm} — {cat.ten_dm}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Sản phẩm */}
+                  {form.target_type === "PRODUCT" && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                          Chọn các món áp dụng
+                        </label>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Đã chọn: {form.productIds.length}
+                        </span>
+                      </div>
+
+                      <div className="border border-gray-200 dark:border-gray-700 rounded-xl max-h-72 overflow-y-auto p-3 bg-gray-50 dark:bg-gray-900/40">
+                        {metaLoading && (
+                          <div className="text-xs text-gray-400 mb-2">
+                            Đang tải danh sách món...
+                          </div>
+                        )}
+
+                        {products.length === 0 ? (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Chưa có món nào trong hệ thống.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {products.map((p) => (
+                              <label
+                                key={p.id_mon}
+                                className="flex items-start gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-gray-800/60 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={form.productIds.includes(p.id_mon)}
+                                  onChange={() => toggleProductInForm(p.id_mon)}
+                                  className="mt-0.5 rounded border-gray-300 dark:border-gray-600 text-orange-600"
+                                />
+                                <span className="flex-1">
+                                  <span className="font-semibold text-gray-800 dark:text-gray-100">
+                                    #{p.id_mon} — {p.ten_mon}
+                                  </span>
+                                  <span className="block text-[11px] text-gray-500 dark:text-gray-400">
+                                    {Number(p.gia || 0).toLocaleString(
+                                      "vi-VN"
+                                    )}{" "}
+                                    ₫
+                                  </span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Có thể chọn nhiều món cùng lúc. Nếu chỉ chọn 1 món, hệ
+                        thống vẫn lưu id_mon để tương thích các chỗ khác.
+                      </p>
+                    </div>
                   )}
 
                   {form.target_type === "ALL" && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Khuyến mãi áp dụng cho toàn bộ menu.
                     </p>
                   )}
-                </div>
-              </div>
 
-              {/* Ngày + Lặp lại + Giờ */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Ngày bắt đầu <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="ngay_bd"
-                    value={form.ngay_bd}
-                    onChange={handleChange}
-                    required
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Ngày kết thúc <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="ngay_kt"
-                    value={form.ngay_kt}
-                    onChange={handleChange}
-                    required
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Lặp lại theo thứ
-                  </label>
-                  <select
-                    name="lap_lai_thu"
-                    value={form.lap_lai_thu}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  >
-                    {weekdayOptions.map((opt) => (
-                      <option key={opt.value ?? "all"} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Để trống hoặc chọn “Áp dụng tất cả các ngày” nếu khuyến mãi
-                    áp dụng mọi ngày trong khoảng thời gian.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Giờ bắt đầu
-                  </label>
-                  <input
-                    type="time"
-                    name="gio_bd"
-                    value={form.gio_bd}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Giờ kết thúc
-                  </label>
-                  <input
-                    type="time"
-                    name="gio_kt"
-                    value={form.gio_kt}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Nếu để trống, khuyến mãi áp dụng cả ngày.
-                  </p>
-                </div>
-              </div>
-
-              {/* Ảnh */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Ảnh (URL)
-                </label>
-                <input
-                  type="text"
-                  name="hinh_anh"
-                  value={form.hinh_anh}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                  placeholder="Link ảnh từ Cloudinary..."
-                />
-              </div>
-
-              {/* CTA */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Nhãn nút (CTA)
-                  </label>
-                  <input
-                    type="text"
-                    name="button_text"
-                    value={form.button_text}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                    placeholder='VD: "Đăng ký ngay", "Xem menu ưu đãi"... (có thể để trống)'
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Đường dẫn khi bấm
-                  </label>
-                  <select
-                    name="button_link_select"
-                    value={currentCtaSelectValue}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm mb-2"
-                  >
-                    {CTA_LINK_OPTIONS.map((opt) => (
-                      <option key={opt.value || "auto"} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  {currentCtaSelectValue === "__custom__" && (
+                  {/* Ảnh */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Ảnh (URL)
+                    </label>
                     <input
                       type="text"
-                      name="button_link"
-                      value={form.button_link}
+                      name="hinh_anh"
+                      value={form.hinh_anh}
                       onChange={handleChange}
                       className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
-                      placeholder="VD: /special-event, /member-only..."
+                      placeholder="Link ảnh từ Cloudinary..."
                     />
-                  )}
+                  </div>
 
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Nếu để trống, hệ thống sẽ tự chọn /menu hoặc /register tùy
-                    loại khuyến mãi.
-                  </p>
+                  {/* CTA */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Nhãn nút (CTA)
+                      </label>
+                      <input
+                        type="text"
+                        name="button_text"
+                        value={form.button_text}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                        placeholder='VD: "Đăng ký ngay", "Xem menu ưu đãi"... (có thể để trống)'
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Đường dẫn khi bấm
+                      </label>
+                      <select
+                        name="button_link_select"
+                        value={currentCtaSelectValue}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm mb-2"
+                      >
+                        {CTA_LINK_OPTIONS.map((opt) => (
+                          <option key={opt.value || "auto"} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {currentCtaSelectValue === "__custom__" && (
+                        <input
+                          type="text"
+                          name="button_link"
+                          value={form.button_link}
+                          onChange={handleChange}
+                          className="w-full rounded-xl border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                          placeholder="VD: /special-event, /member-only..."
+                        />
+                      )}
+
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Nếu để trống, hệ thống sẽ tự chọn /menu hoặc /register
+                        tùy loại khuyến mãi.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Hiển thị */}
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="hien_thi"
+                        checked={form.hien_thi}
+                        onChange={handleChange}
+                        className="rounded border-gray-300 dark:border-gray-700 text-orange-600"
+                      />
+                      Hiển thị trên website
+                    </label>
+                  </div>
                 </div>
-              </div>
-
-              {/* Hiển thị */}
-              <div className="flex items-center justify-between">
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                  <input
-                    type="checkbox"
-                    name="hien_thi"
-                    checked={form.hien_thi}
-                    onChange={handleChange}
-                    className="rounded border-gray-300 dark:border-gray-700 text-orange-600"
-                  />
-                  Hiển thị trên website
-                </label>
               </div>
 
               {error && (
-                <div className="text-sm text-red-600 dark:text-red-400">
+                <div className="text-sm text-red-600 dark:text-red-400 mt-2">
                   {error}
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={closeModal}
