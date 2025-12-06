@@ -31,10 +31,6 @@ const STATUS_MAP = {
     label: "Hoàn thành",
     colorClass: "bg-green-100 text-green-800 border-green-200",
   },
-  completed: {
-    label: "Hoàn thành",
-    colorClass: "bg-green-100 text-green-800 border-green-200",
-  },
   cancelled: {
     label: "Đã hủy",
     colorClass: "bg-red-100 text-red-800 border-red-200",
@@ -157,34 +153,36 @@ export default function AdminOrders() {
         );
 
   const handleStatusChange = async (orderId, newStatusKey) => {
-    const newStatusApiValue = newStatusKey.toUpperCase();
-    try {
-      await updateOrderStatus(orderId, newStatusApiValue);
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id_don === orderId ? { ...o, trang_thai: newStatusKey } : o
-        )
-      );
-      Swal.fire({
-        icon: "success",
-        title: "Thành công!",
-        text: `Đã cập nhật trạng thái thành "${getStatusLabel(
-          newStatusKey
-        )}".`,
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || "Không thể cập nhật trạng thái.";
-      console.error("Update failed:", errorMessage);
-      Swal.fire({
-        icon: "error",
-        title: "Lỗi!",
-        text: errorMessage,
-      });
-    }
-  };
+  // Gửi giá trị chữ thường (pending, confirmed, done, cancelled, ...)
+  const newStatusApiValue = newStatusKey.toLowerCase(); // ← Đổi từ .toUpperCase()
+  
+  try {
+    await updateOrderStatus(orderId, newStatusApiValue);
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id_don === orderId ? { ...o, trang_thai: newStatusKey } : o
+      )
+    );
+    Swal.fire({
+      icon: "success",
+      title: "Thành công!",
+      text: `Đã cập nhật trạng thái thành "${getStatusLabel(
+        newStatusKey
+      )}".`,
+      timer: 1500,
+      showConfirmButton: false,
+    });
+  } catch (err) {
+    const errorMessage =
+      err.response?.data?.message || "Không thể cập nhật trạng thái.";
+    console.error("Update failed:", errorMessage);
+    Swal.fire({
+      icon: "error",
+      title: "Lỗi!",
+      text: errorMessage,
+    });
+  }
+};
 
   const handleViewDetails = async (orderId) => {
     setIsModalOpen(true);
