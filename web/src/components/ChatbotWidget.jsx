@@ -191,7 +191,6 @@ export default function ChatbotWidget() {
     const text = input.trim();
 
     if (!text && !selectedImage) return;
-
     if (!activeSession) return;
 
     setIsSending(true);
@@ -236,11 +235,11 @@ export default function ChatbotWidget() {
             : []),
         ]);
 
-        const formData = new FormData();
-        formData.append("image", thisImage.file);
-        formData.append("history", JSON.stringify(historyForApi));
-
-        const res = await sendImageMessage(formData);
+        // ✅ Gọi đúng helper – truyền file & history, để sendImageMessage tự tạo FormData
+        const res = await sendImageMessage({
+          file: thisImage.file,
+          history: historyForApi,
+        });
 
         const replyText =
           res.data?.reply ||
@@ -432,9 +431,7 @@ export default function ChatbotWidget() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-orange-500 text-white rounded-t-2xl">
             <div className="flex flex-col gap-1">
-              <span className="font-bold text-sm">
-                Trợ lý LO Coffee
-              </span>
+              <span className="font-bold text-sm">Trợ lý LO Coffee</span>
               <span className="text-[11px] opacity-90">
                 Hỏi mình về menu, gợi ý đồ uống, đặt bàn hoặc gửi hình ảnh để tư
                 vấn nhé!
@@ -549,7 +546,9 @@ export default function ChatbotWidget() {
                       />
                     </div>
                   )}
-                  {m.text && <div className="whitespace-pre-line">{m.text}</div>}
+                  {m.text && (
+                    <div className="whitespace-pre-line">{m.text}</div>
+                  )}
                 </div>
               </div>
             ))}
