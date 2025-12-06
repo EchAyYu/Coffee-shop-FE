@@ -36,6 +36,7 @@ const emptyForm = {
 
   // Hiển thị / CTA
   hien_thi: true,
+  ap_dung_gia: true, // ✅ MỚI
   button_text: "",
   button_link: "",
 };
@@ -187,6 +188,7 @@ export default function AdminPromotions() {
       gio_kt: promo.gio_kt || "",
 
       hien_thi: Boolean(promo.hien_thi),
+      ap_dung_gia: promo.ap_dung_gia !== false, // ✅ default true nếu null/undefined
       button_text: promo.button_text || "",
       button_link: promo.button_link || "",
     });
@@ -208,6 +210,12 @@ export default function AdminPromotions() {
 
     if (name === "hien_thi") {
       setForm((prev) => ({ ...prev, hien_thi: checked }));
+      return;
+    }
+
+    // ✅ MỚI: checkbox "Áp dụng giá"
+    if (name === "ap_dung_gia") {
+      setForm((prev) => ({ ...prev, ap_dung_gia: checked }));
       return;
     }
 
@@ -320,6 +328,7 @@ export default function AdminPromotions() {
         gio_kt: form.gio_kt || null,
 
         hien_thi: form.hien_thi,
+        ap_dung_gia: form.ap_dung_gia, // ✅ MỚI
         button_text: form.button_text || null,
         button_link: form.button_link || null,
       };
@@ -397,6 +406,7 @@ export default function AdminPromotions() {
                   <th className="px-4 py-3 text-left">Phạm vi</th>
                   <th className="px-4 py-3 text-left">Thời gian</th>
                   <th className="px-4 py-3 text-left">Lặp lại</th>
+                  <th className="px-4 py-3 text-left">Áp dụng giá</th>{/* ✅ MỚI */}
                   <th className="px-4 py-3 text-left">Hiển thị</th>
                   <th className="px-4 py-3 text-right">Hành động</th>
                 </tr>
@@ -447,6 +457,20 @@ export default function AdminPromotions() {
                     <td className="px-4 py-3 align-top text-xs text-gray-700 dark:text-gray-300">
                       {weekdayLabel(promo.lap_lai_thu)}
                     </td>
+
+                    {/* ✅ MỚI: Cột trạng thái áp dụng giá */}
+                    <td className="px-4 py-3 align-top">
+                      {promo.ap_dung_gia !== false ? (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                          Áp dụng giá
+                        </span>
+                      ) : (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100">
+                          Chỉ hiển thị
+                        </span>
+                      )}
+                    </td>
+
                     <td className="px-4 py-3 align-top">
                       {promo.hien_thi ? (
                         <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
@@ -838,8 +862,8 @@ export default function AdminPromotions() {
                     </div>
                   </div>
 
-                  {/* Hiển thị */}
-                  <div className="flex items-center justify-between pt-2">
+                  {/* Hiển thị & áp dụng giá */}
+                  <div className="pt-2 space-y-2">
                     <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                       <input
                         type="checkbox"
@@ -848,8 +872,25 @@ export default function AdminPromotions() {
                         onChange={handleChange}
                         className="rounded border-gray-300 dark:border-gray-700 text-orange-600"
                       />
-                      Hiển thị trên website
+                      Hiển thị trên website (banner)
                     </label>
+
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="ap_dung_gia"
+                        checked={form.ap_dung_gia}
+                        onChange={handleChange}
+                        className="rounded border-gray-300 dark:border-gray-700 text-orange-600"
+                      />
+                      Áp dụng giảm trực tiếp vào giá món
+                    </label>
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Nếu bỏ chọn &quot;Áp dụng giảm trực tiếp vào giá món&quot;
+                      thì khuyến mãi chỉ hiển thị cho khách thấy, nhưng không
+                      thay đổi giá sản phẩm.
+                    </p>
                   </div>
                 </div>
               </div>
