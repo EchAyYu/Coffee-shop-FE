@@ -126,21 +126,29 @@ export const deleteProduct = (id) => adminApi.delete(`/products/${id}`);
 // =====================
 // 🔹 ORDERS (Admin)
 // =====================
+
+// Danh sách đơn hàng admin
 export const getOrdersAdmin = () => adminApi.get("/admin/orders");
+
+// Chi tiết đơn cho admin
 export const getOrderDetailAdmin = (id) =>
   adminApi.get(`/admin/orders/${id}`);
-// ✅ Sửa lại path để khớp backend: PUT /admin/orders/:id
+
+// ✅ Cập nhật trạng thái đơn hàng: khớp với BE: PUT /admin/orders/:id/status
 export const updateOrderStatus = (id, trang_thai) =>
-  adminApi.put(`/admin/orders/${id}`, { trang_thai });
+  adminApi.put(`/admin/orders/${id}/status`, { trang_thai });
+
+// Xóa đơn hàng
 export const deleteOrderAdmin = (id) =>
   adminApi.delete(`/admin/orders/${id}`);
 
-// 🔹 Thống kê đơn hàng theo tuần/tháng/năm
-// (giữ nguyên path cũ đang dùng)
+// 🔹 Thống kê đơn hàng theo tuần/tháng
+// BE: GET /api/admin/orders-stats?period=week|month
 export const getAdminOrderStats = (params) =>
   adminApi.get("/admin/orders-stats", { params });
 
-// 🔹 MỚI: Export đơn hàng (CSV mở bằng Excel)
+// 🔹 Export đơn hàng (CSV mở bằng Excel)
+// BE: GET /api/admin/orders/export?period=week|month
 export const exportAdminOrders = ({ period }) =>
   adminApi.get("/admin/orders/export", {
     params: { period },
@@ -154,7 +162,7 @@ export const reservations = {
   create: (data) => adminApi.post("/reservations", data),
   my: () => adminApi.get("/reservations/my"),
 
-  // ⚠️ list/update/delete/getById vẫn dùng /reservations như cũ
+  // list/update/delete/getById vẫn dùng /reservations như cũ
   list: () => adminApi.get("/reservations"),
   getById: (id) => adminApi.get(`/reservations/${id}`),
   update: (id, data) => adminApi.put(`/reservations/${id}`, data),
