@@ -208,8 +208,9 @@ export const vouchers = {
   catalog:  () => api.get("/vouchers/catalog"),
   my:       () => api.get("/vouchers/my"),
   redeem:   (voucher_id) => api.post("/vouchers/redeem", { voucher_id }),
-  validate: (code, order_total) => api.post("/vouchers/validate", { code, order_total }),
-};
+  validate: (code, order_total, items) =>
+    api.post("/vouchers/validate", { code, order_total, items }),
+}
 
 export const loyalty = {
   myPoints: () => api.get("/loyalty/me/points"),
