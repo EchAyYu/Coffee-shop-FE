@@ -1,65 +1,85 @@
+// src/pages/admin/AdminProtectedRoute.jsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { Navigate, Outlet, useNavigate } from "react-router-dom";
 import { clearAdminToken, adminLogout } from "../../api/adminApi";
-import React, { createContext, useContext } from "react";
 
-// 💡 1. Định nghĩa key
+// Key lưu trong localStorage
 const ADMIN_TOKEN_KEY = "admin_access_token";
 const ADMIN_USER_KEY = "admin_user";
 
-// Tạo một Context nhỏ CHỈ DÙNG CHO ADMIN
 const AdminAuthContext = createContext(null);
 
 export const useAdminAuth = () => {
-  const context = useContext(AdminAuthContext);
-  if (!context) {
-    throw new Error("useAdminAuth must be used within an AdminAuthProvider");
-  }
-  return context;
+  const context = useContext(AdminAuthContext);
+  if (!context) {
+    throw new Error("useAdminAuth must be used within AdminProtectedRoute");
+  }
+  return context;
 };
 
-// Component gác cổng chính
 export default function AdminProtectedRoute() {
-  // 💡 2. Đọc cả TOKEN và USER từ localStorage
-  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
-  const userString = localStorage.getItem(ADMIN_USER_KEY);
-  const user = userString ? JSON.parse(userString) : null;
-  
-  const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
 
-  // 💡 3. Kiểm tra cả hai
-  if (!token || !user) {
-    // Nếu thiếu 1 trong 2, xóa tất cả và đá về trang login
-    clearAdminToken();
-    localStorage.removeItem(ADMIN_USER_KEY);
-    return <Navigate to="/admin" replace />;
-  }
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+      const rawUser = localStorage.getItem(ADMIN_USER_KEY);
 
-  // 💡 4. Kiểm tra vai trò
-  if (user.role !== 'admin' && user.role !== 'employee') {
-    // Nếu có token + user, nhưng role là 'customer'
-    clearAdminToken();
-    localStorage.removeItem(ADMIN_USER_KEY);
-    return <Navigate to="/admin" replace />;
-  }
+      if (!token || !rawUser) {
+        navigate("/admin", { replace: true });
+        return;
+      }
 
-  // Hàm đăng xuất riêng của Admin
-  const logout = async () => {
-    try {
-      await adminLogout();
-    } catch (error) {
-      console.error("Admin logout failed:", error);
-    } finally {
-      // 💡 5. Xóa cả TOKEN và USER khi đăng xuất
-      clearAdminToken();
-      localStorage.removeItem(ADMIN_USER_KEY);
-      navigate("/admin"); // Quay về trang login admin
-    }
-  };
+      const parsed = JSON.parse(rawUser);
+      // parsed: { id_tk, ten_dn, role } từ /auth/me
+      if (!parsed || !parsed.role) {
+        navigate("/admin", { replace: true });
+        return;
+      }
 
-  // 💡 6. Cung cấp cả `logout` và `user` cho các component con
-  return (
-    <AdminAuthContext.Provider value={{ logout, user }}>
-      <Outlet />
-    </AdminAuthContext.Provider>
-  );
+      setUser(parsed);
+    } catch (err) {
+      console.error("Lỗi parse admin_user từ localStorage:", err);
+      localStorage.removeItem(ADMIN_USER_KEY);
+      clearAdminToken();
+      navigate("/admin", { replace: true });
+      return;
+    } finally {
+      setReady(true);
+    }
+  }, [navigate]);
+
+  const logout = async () => {
+    try {
+      await adminLogout();
+    } catch (error) {
+      console.error("Admin logout failed:", error);
+    } finally {
+      clearAdminToken();
+      localStorage.removeItem(ADMIN_USER_KEY);
+      navigate("/admin", { replace: true });
+    }
+  };
+
+  if (!ready) {
+    // Có thể trả về spinner nếu muốn
+    return null;
+  }
+
+  if (!user) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
+    <AdminAuthContext.Provider value={{ user, logout }}>
+      <Outlet />
+    </AdminAuthContext.Provider>
+  );
 }

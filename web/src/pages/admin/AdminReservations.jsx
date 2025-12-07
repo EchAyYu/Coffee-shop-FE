@@ -1,5 +1,5 @@
 // src/pages/admin/AdminReservations.jsx
-// --- PHIÊN BẢN NÂNG CẤP (V3 - THỐNG KÊ TUẦN/THÁNG + EXPORT) ---
+// Nâng cấp V3: thống kê tuần/tháng + export + phân quyền admin/employee
 
 import { useEffect, useState } from "react";
 import { reservations } from "../../api/adminApi";
@@ -62,16 +62,32 @@ export default function AdminReservations() {
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
 
-  // 🔹 Thống kê theo kỳ: CHỈ week | month
+  // Stats week/month
   const [period, setPeriod] = useState("month");
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Lấy role
+  const rawUser = localStorage.getItem("admin_user");
+  let role = null;
+  try {
+    role = JSON.parse(rawUser)?.role || null;
+  } catch {
+    role = null;
+  }
 
   useEffect(() => {
     loadReservations();
   }, []);
 
+  // Chỉ admin gọi stats
   useEffect(() => {
+    if (role !== "admin") {
+      setStats(null);
+      setStatsLoading(false);
+      return;
+    }
+
     async function fetchStats() {
       setStatsLoading(true);
       try {
@@ -83,8 +99,9 @@ export default function AdminReservations() {
         setStatsLoading(false);
       }
     }
+
     fetchStats();
-  }, [period]);
+  }, [period, role]);
 
   const loadReservations = async () => {
     try {
@@ -153,7 +170,7 @@ export default function AdminReservations() {
     setSelectedReservation(null);
   };
 
-  // 🔹 Export Excel (CSV)
+  // Export Excel
   const handleExport = async () => {
     try {
       const res = await reservations.export({ period });
@@ -206,77 +223,81 @@ export default function AdminReservations() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      {/* Header + chọn kỳ + Export */}
+      {/* Header + chọn kỳ + Export (chỉ admin) */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             📅 Quản lý Đặt bàn
           </h1>
           <p className="text-gray-600 mt-1">
-            Theo dõi lượng đặt bàn theo tuần / tháng và tỷ lệ đặt thành công.
+            Theo dõi các yêu cầu đặt bàn và cập nhật trạng thái.
           </p>
         </div>
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+        {role === "admin" && (
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+              <button
+                onClick={() => setPeriod("week")}
+                className={`px-4 py-1 rounded-full ${
+                  period === "week"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600"
+                }`}
+              >
+                Tuần này
+              </button>
+              <button
+                onClick={() => setPeriod("month")}
+                className={`px-4 py-1 rounded-full ${
+                  period === "month"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600"
+                }`}
+              >
+                Tháng này
+              </button>
+            </div>
+
             <button
-              onClick={() => setPeriod("week")}
-              className={`px-4 py-1 rounded-full ${
-                period === "week"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600"
-              }`}
+              onClick={handleExport}
+              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 shadow-sm"
             >
-              Tuần này
-            </button>
-            <button
-              onClick={() => setPeriod("month")}
-              className={`px-4 py-1 rounded-full ${
-                period === "month"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600"
-              }`}
-            >
-              Tháng này
+              ⬇ Xuất Excel ({period === "week" ? "Tuần" : "Tháng"})
             </button>
           </div>
+        )}
+      </div>
 
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 shadow-sm"
-          >
-            ⬇ Xuất Excel ({period === "week" ? "Tuần" : "Tháng"})
-          </button>
+      {/* Thống kê (chỉ admin) */}
+      {role === "admin" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <StatCard
+            title="Tổng lượt đặt trong kỳ"
+            value={statsLoading ? "…" : totalReservations}
+            icon="📌"
+          />
+          <StatCard
+            title="Đặt thành công (số + %)"
+            value={
+              statsLoading
+                ? "…"
+                : `${stats?.successfulReservations || 0} (${successPercent}%)`
+            }
+            icon="✅"
+            colorClass="text-emerald-600"
+          />
+          <StatCard
+            title="Đặt bị hủy (số + %)"
+            value={
+              statsLoading
+                ? "…"
+                : `${stats?.cancelledReservations || 0} (${cancelledPercent}%)`
+            }
+            icon="❌"
+            colorClass="text-red-600"
+          />
         </div>
-      </div>
-
-      {/* Thống kê */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <StatCard
-          title="Tổng lượt đặt trong kỳ"
-          value={statsLoading ? "…" : totalReservations}
-          icon="📌"
-        />
-        <StatCard
-          title="Đặt thành công (số + %)"
-          value={
-            statsLoading
-              ? "…"
-              : `${stats?.successfulReservations || 0} (${successPercent}%)`
-          }
-          icon="✅"
-          colorClass="text-emerald-600"
-        />
-        <StatCard
-          title="Đặt bị hủy (số + %)"
-          value={
-            statsLoading
-              ? "…"
-              : `${stats?.cancelledReservations || 0} (${cancelledPercent}%)`
-          }
-          icon="❌"
-          colorClass="text-red-600"
-        />
-      </div>
+      )}
 
       {/* Bảng dữ liệu */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -326,9 +347,7 @@ export default function AdminReservations() {
 
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {new Date(item.ngay_dat).toLocaleDateString(
-                          "vi-VN"
-                        )}
+                        {new Date(item.ngay_dat).toLocaleDateString("vi-VN")}
                       </div>
                       <div className="text-xs text-gray-500">
                         {item.gio_dat || ""}

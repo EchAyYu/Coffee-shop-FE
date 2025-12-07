@@ -13,10 +13,8 @@ import { reservations } from "../api/api";
 import { sendChatbotMessage, sendImageMessage } from "../api/chatbotApi";
 import { useCart } from "./CartContext";
 
-// key lưu localStorage
 const STORAGE_KEY = "lo_coffee_chatbot_sessions_v3";
 
-// Tạo 1 session mới
 function createNewSession(title = "Cuộc trò chuyện mới") {
   const id = `session_${Date.now()}`;
   return {
@@ -37,7 +35,6 @@ function createNewSession(title = "Cuộc trò chuyện mới") {
   };
 }
 
-// Chuyển messages → history cho API
 function buildHistoryFromMessages(messages = []) {
   return messages
     .filter((m) => m.type === "text" && m.text && m.sender !== "system")
@@ -73,7 +70,7 @@ export default function ChatbotWidget() {
 
   const { addToCart } = useCart();
 
-  // ===== Load & save sessions =====
+  // Load sessions
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -89,31 +86,30 @@ export default function ChatbotWidget() {
       console.warn("Không parse được lịch sử chatbot:", e);
     }
 
-    // Nếu chưa có, tạo 1 session mặc định
     const first = createNewSession("Cuộc trò chuyện 1");
     setSessions([first]);
     setActiveSessionId(first.id);
   }, []);
 
+  // Save sessions
   useEffect(() => {
     if (sessions.length) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
     }
   }, [sessions]);
 
-  // ===== Helper lấy session hiện tại =====
   const activeSession = useMemo(
     () => sessions.find((s) => s.id === activeSessionId) || sessions[0],
     [sessions, activeSessionId]
   );
 
-  // ===== Auto scroll xuống cuối khi có tin nhắn mới =====
+  // Auto scroll
   useEffect(() => {
     if (!isOpen) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeSession, isOpen]);
 
-  // ===== Thao tác với session =====
+  // Session actions
   const handleNewSession = () => {
     const newIndex = sessions.length + 1;
     const newSession = createNewSession(`Cuộc trò chuyện ${newIndex}`);
@@ -160,7 +156,7 @@ export default function ChatbotWidget() {
     setEditingTitle(false);
   };
 
-  // ===== Gửi TEXT / IMAGE =====
+  // Chat helpers
   const appendMessageToActive = (msg) => {
     if (!activeSession) return;
     setSessions((prev) =>
@@ -182,14 +178,13 @@ export default function ChatbotWidget() {
 
     const previewUrl = URL.createObjectURL(file);
     setSelectedImage({ file, previewUrl });
-
-    // không auto gửi, chờ user bấm nút gửi
   };
 
   const handleSend = async () => {
     if (isSending) return;
     const text = input.trim();
 
+    // Không có text & không có ảnh thì thôi
     if (!text && !selectedImage) return;
     if (!activeSession) return;
 
@@ -198,7 +193,7 @@ export default function ChatbotWidget() {
     try {
       const baseMessages = activeSession.messages;
 
-      // 1. Thêm message user (text nếu có)
+      // 1. Đẩy message text của user (nếu có)
       if (text) {
         appendMessageToActive({
           id: `m_${Date.now()}_user`,
@@ -208,11 +203,12 @@ export default function ChatbotWidget() {
         });
       }
 
-      // 2. Nếu có ảnh → gọi API image
+      // 2. Nếu có ảnh → gửi ảnh
       if (selectedImage) {
         const thisImage = selectedImage;
         setSelectedImage(null);
 
+        // Hiện ảnh lên khung chat
         appendMessageToActive({
           id: `m_${Date.now()}_img`,
           sender: "user",
@@ -235,14 +231,12 @@ export default function ChatbotWidget() {
             : []),
         ]);
 
-        // ✅ Gọi đúng helper – truyền file & history, để sendImageMessage tự tạo FormData
-        const res = await sendImageMessage({
-          file: thisImage.file,
-          history: historyForApi,
-        });
+        // ✅ Gọi API: chỉ truyền file + history
+        const res = await sendImageMessage(thisImage.file, historyForApi);
+        const { reply, orderItems } = res.data || {};
 
         const replyText =
-          res.data?.reply ||
+          reply ||
           "Mình chưa đọc được hình này, bạn thử gửi lại giúp mình nhé.";
 
         appendMessageToActive({
@@ -252,13 +246,17 @@ export default function ChatbotWidget() {
           text: replyText,
         });
 
+        if (orderItems && Array.isArray(orderItems) && orderItems.length > 0) {
+          setPendingOrderItems(orderItems);
+        } else {
+          setPendingOrderItems(null);
+        }
+
         setInput("");
-        setPendingOrderItems(null);
-        // chat ảnh không sinh đặt bàn, nên không đụng pendingReservation
         return;
       }
 
-      // 3. Nếu chỉ có text → gọi API text
+      // 3. Nếu chỉ text
       const historyForApi = buildHistoryFromMessages(baseMessages);
 
       const res = await sendChatbotMessage({
@@ -277,14 +275,14 @@ export default function ChatbotWidget() {
         text: replyText,
       });
 
-      // Đặt bàn nhanh từ AI
+      // Đặt bàn nhanh
       if (res.data?.reservationData) {
         setPendingReservation(res.data.reservationData);
       } else {
         setPendingReservation(null);
       }
 
-      // Đặt món nhanh / thêm vào giỏ
+      // Đặt món nhanh
       if (res.data?.orderItems && Array.isArray(res.data.orderItems)) {
         if (res.data.orderItems.length > 0) {
           setPendingOrderItems(res.data.orderItems);
@@ -298,11 +296,13 @@ export default function ChatbotWidget() {
       setInput("");
     } catch (err) {
       console.error("Lỗi chatbot:", err);
+      const backendMsg = err?.response?.data?.message;
       appendMessageToActive({
         id: `m_${Date.now()}_error`,
         sender: "bot",
         type: "text",
         text:
+          backendMsg ||
           "Chatbot đang gặp chút trục trặc, bạn thử lại sau ít phút giúp mình nhé.",
       });
     } finally {
@@ -310,13 +310,12 @@ export default function ChatbotWidget() {
     }
   };
 
-  // ===== Đặt bàn nhanh từ AI =====
+  // Đặt bàn nhanh từ AI
   const handleQuickReservationFromAI = async () => {
     if (!pendingReservation || confirmingReservation) return;
 
     const r = pendingReservation;
 
-    // Nếu AI chưa convert được ngày → không gửi, nhắc user sửa lại
     if (!r.date || !r.time) {
       appendMessageToActive({
         id: `m_${Date.now()}_warn`,
@@ -367,10 +366,10 @@ export default function ChatbotWidget() {
   };
 
   const handleGoToBookingForm = () => {
-    window.location.href = "/booking"; // chỉnh nếu route khác
+    window.location.href = "/booking";
   };
 
-  // ===== Thêm món vào giỏ từ AI =====
+  // Thêm món vào giỏ từ AI
   const handleApplyPendingOrder = (goToCheckout = false) => {
     if (!pendingOrderItems || !pendingOrderItems.length || processingOrder)
       return;
@@ -409,12 +408,11 @@ export default function ChatbotWidget() {
     }
   };
 
-  // ===== Render =====
   if (!activeSession) return null;
 
   return (
     <>
-      {/* Nút floating mở chatbot */}
+      {/* Nút mở chatbot */}
       {!isOpen && (
         <button
           type="button"
@@ -433,8 +431,8 @@ export default function ChatbotWidget() {
             <div className="flex flex-col gap-1">
               <span className="font-bold text-sm">Trợ lý LO Coffee</span>
               <span className="text-[11px] opacity-90">
-                Hỏi mình về menu, gợi ý đồ uống, đặt bàn hoặc gửi hình ảnh để tư
-                vấn nhé!
+                Hỏi mình về menu, gợi ý đồ uống, đặt bàn hoặc gửi hình ảnh để
+                tư vấn nhé!
               </span>
             </div>
             <button
@@ -446,7 +444,7 @@ export default function ChatbotWidget() {
             </button>
           </div>
 
-          {/* Thanh chọn cuộc trò chuyện + đổi tên + chat mới */}
+          {/* Chọn session + đổi tên + tạo mới */}
           <div className="px-4 py-2 border-b border-orange-100 bg-orange-50/60 flex items-center gap-2">
             <select
               value={activeSession.id}
@@ -491,7 +489,7 @@ export default function ChatbotWidget() {
             </button>
           </div>
 
-          {/* Ô đổi tên inline (nếu đang edit) */}
+          {/* Ô đổi tên */}
           {editingTitle && (
             <div className="px-4 py-2 border-b border-orange-100 bg-orange-50/80 flex items-center gap-2">
               <input
@@ -553,7 +551,7 @@ export default function ChatbotWidget() {
               </div>
             ))}
 
-            {/* Panel xác nhận ĐẶT BÀN */}
+            {/* Panel đặt bàn nhanh */}
             {pendingReservation && (
               <div className="mt-2 p-3 bg-white border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
                 <div className="font-semibold text-orange-700 flex items-center gap-1">
@@ -605,7 +603,7 @@ export default function ChatbotWidget() {
               </div>
             )}
 
-            {/* Panel xác nhận THÊM VÀO GIỎ */}
+            {/* Panel thêm vào giỏ từ AI */}
             {pendingOrderItems && pendingOrderItems.length > 0 && (
               <div className="mt-2 p-3 bg-white border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
                 <div className="font-semibold text-orange-700 flex items-center gap-1">

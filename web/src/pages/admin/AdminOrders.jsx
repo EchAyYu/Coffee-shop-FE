@@ -5,7 +5,7 @@ import {
   updateOrderStatus,
   getOrderDetailAdmin,
   getAdminOrderStats,
-  exportAdminOrders,        // ⬅️ MỚI
+  exportAdminOrders,
 } from "../../api/adminApi";
 import Swal from "sweetalert2";
 import OrderDetailModal from "../../components/OrderDetailModal";
@@ -75,15 +75,24 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
 
-  // Modal chi tiết
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
 
-  // 🔹 Thống kê theo kỳ: CHỈ week | month
+  // Stats week / month
   const [period, setPeriod] = useState("month");
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Lấy role từ localStorage
+  const rawUser = localStorage.getItem("admin_user");
+  let role = null;
+  try {
+    role = JSON.parse(rawUser)?.role || null;
+  } catch {
+    role = null;
+  }
 
   useEffect(() => {
     async function fetchOrders() {
@@ -91,10 +100,7 @@ export default function AdminOrders() {
         const res = await getOrdersAdmin();
         setOrders(res.data?.data || []);
       } catch (err) {
-        console.error(
-          "❌ Fetch orders failed:",
-          err.response?.data || err.message
-        );
+        console.error("❌ Fetch orders failed:", err);
         Swal.fire("Lỗi", "Không thể tải danh sách đơn hàng.", "error");
       } finally {
         setLoading(false);
@@ -103,7 +109,13 @@ export default function AdminOrders() {
     fetchOrders();
   }, []);
 
+  // Chỉ admin mới fetch thống kê
   useEffect(() => {
+    if (role !== "admin") {
+      setStats(null);
+      setStatsLoading(false);
+      return;
+    }
     async function fetchStats() {
       setStatsLoading(true);
       try {
@@ -116,7 +128,7 @@ export default function AdminOrders() {
       }
     }
     fetchStats();
-  }, [period]);
+  }, [period, role]);
 
   const completedOrders = orders.filter((o) =>
     ["done", "completed"].includes(o.trang_thai?.toLowerCase())
@@ -128,7 +140,7 @@ export default function AdminOrders() {
     (o) => o.trang_thai?.toLowerCase() === "cancelled"
   );
 
-  // 🔹 Doanh thu chỉ tính trong khoảng kỳ đang chọn (tuần / tháng)
+  // Doanh thu trong kỳ (week / month)
   let periodRevenue = 0;
   if (stats?.range && orders.length > 0) {
     const start = new Date(stats.range.start).getTime();
@@ -152,38 +164,39 @@ export default function AdminOrders() {
           (order) => order.trang_thai?.toLowerCase() === filter
         );
 
+  // Update trạng thái
   const handleStatusChange = async (orderId, newStatusKey) => {
-  // Gửi giá trị chữ thường (pending, confirmed, done, cancelled, ...)
-  const newStatusApiValue = newStatusKey.toLowerCase(); // ← Đổi từ .toUpperCase()
-  
-  try {
-    await updateOrderStatus(orderId, newStatusApiValue);
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id_don === orderId ? { ...o, trang_thai: newStatusKey } : o
-      )
-    );
-    Swal.fire({
-      icon: "success",
-      title: "Thành công!",
-      text: `Đã cập nhật trạng thái thành "${getStatusLabel(
-        newStatusKey
-      )}".`,
-      timer: 1500,
-      showConfirmButton: false,
-    });
-  } catch (err) {
-    const errorMessage =
-      err.response?.data?.message || "Không thể cập nhật trạng thái.";
-    console.error("Update failed:", errorMessage);
-    Swal.fire({
-      icon: "error",
-      title: "Lỗi!",
-      text: errorMessage,
-    });
-  }
-};
+    const newApiValue = newStatusKey.toLowerCase(); // backend dùng lowercase
 
+    try {
+      await updateOrderStatus(orderId, newApiValue);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id_don === orderId ? { ...o, trang_thai: newStatusKey } : o
+        )
+      );
+      Swal.fire({
+        icon: "success",
+        title: "Thành công!",
+        text: `Đã cập nhật trạng thái thành "${getStatusLabel(
+          newStatusKey
+        )}".`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      const msg =
+        err.response?.data?.message || "Không thể cập nhật trạng thái.";
+      console.error("Update failed:", msg);
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi!",
+        text: msg,
+      });
+    }
+  };
+
+  // Modal chi tiết đơn hàng
   const handleViewDetails = async (orderId) => {
     setIsModalOpen(true);
     setIsModalLoading(true);
@@ -204,7 +217,7 @@ export default function AdminOrders() {
     setSelectedOrder(null);
   };
 
-  // 🔹 Export Excel (CSV)
+  // Export CSV
   const handleExport = async () => {
     try {
       const res = await exportAdminOrders({ period });
@@ -249,85 +262,89 @@ export default function AdminOrders() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      {/* Header + chọn kỳ + Export */}
+      {/* Header + chọn kỳ + Export (chỉ admin) */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             📦 Quản lý đơn hàng
           </h1>
           <p className="text-gray-600 mt-1">
-            Theo dõi đơn hàng theo tuần / tháng, kèm tỷ lệ hoàn thành & hủy.
+            Theo dõi đơn hàng và cập nhật trạng thái.
           </p>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+        {role === "admin" && (
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+              <button
+                onClick={() => setPeriod("week")}
+                className={`px-4 py-1 rounded-full ${
+                  period === "week"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600"
+                }`}
+              >
+                Tuần này
+              </button>
+              <button
+                onClick={() => setPeriod("month")}
+                className={`px-4 py-1 rounded-full ${
+                  period === "month"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600"
+                }`}
+              >
+                Tháng này
+              </button>
+            </div>
+
             <button
-              onClick={() => setPeriod("week")}
-              className={`px-4 py-1 rounded-full ${
-                period === "week"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600"
-              }`}
+              onClick={handleExport}
+              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 shadow-sm"
             >
-              Tuần này
-            </button>
-            <button
-              onClick={() => setPeriod("month")}
-              className={`px-4 py-1 rounded-full ${
-                period === "month"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600"
-              }`}
-            >
-              Tháng này
+              ⬇ Xuất Excel ({period === "week" ? "Tuần" : "Tháng"})
             </button>
           </div>
+        )}
+      </div>
 
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 shadow-sm"
-          >
-            ⬇ Xuất Excel ({period === "week" ? "Tuần" : "Tháng"})
-          </button>
+      {/* Thống kê (chỉ admin) */}
+      {role === "admin" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <StatCard
+            title="Đơn trong kỳ"
+            value={statsLoading ? "…" : totalOrdersPeriod}
+            icon="🧾"
+            colorClass="text-gray-900"
+          />
+          <StatCard
+            title="Hoàn thành (số + %)"
+            value={
+              statsLoading
+                ? "…"
+                : `${stats?.completedOrders || 0} (${completedPercent}%)`
+            }
+            icon="✅"
+            colorClass="text-emerald-600"
+          />
+          <StatCard
+            title="Đã hủy (số + %)"
+            value={
+              statsLoading
+                ? "…"
+                : `${stats?.cancelledOrders || 0} (${cancelledPercent}%)`
+            }
+            icon="❌"
+            colorClass="text-red-600"
+          />
+          <StatCard
+            title="Doanh thu trong kỳ (Hoàn thành)"
+            value={statsLoading ? "…" : formatCurrency(periodRevenue)}
+            icon="💰"
+            colorClass="text-orange-600"
+          />
         </div>
-      </div>
-
-      {/* Thống kê */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Đơn trong kỳ"
-          value={statsLoading ? "…" : totalOrdersPeriod}
-          icon="🧾"
-          colorClass="text-gray-900"
-        />
-        <StatCard
-          title="Hoàn thành (số + %)"
-          value={
-            statsLoading
-              ? "…"
-              : `${stats?.completedOrders || 0} (${completedPercent}%)`
-          }
-          icon="✅"
-          colorClass="text-emerald-600"
-        />
-        <StatCard
-          title="Đã hủy (số + %)"
-          value={
-            statsLoading
-              ? "…"
-              : `${stats?.cancelledOrders || 0} (${cancelledPercent}%)`
-          }
-          icon="❌"
-          colorClass="text-red-600"
-        />
-        <StatCard
-          title="Doanh thu trong kỳ (Hoàn thành)"
-          value={statsLoading ? "…" : formatCurrency(periodRevenue)}
-          icon="💰"
-          colorClass="text-orange-600"
-        />
-      </div>
+      )}
 
       {/* Bộ lọc & bảng */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -469,8 +486,7 @@ export default function AdminOrders() {
                             )}
                             {order.OrderDetails.length > 2 && (
                               <div className="text-xs text-gray-500">
-                                +{order.OrderDetails.length - 2} sản phẩm
-                                khác
+                                +{order.OrderDetails.length - 2} sản phẩm khác
                               </div>
                             )}
                           </div>
@@ -506,10 +522,7 @@ export default function AdminOrders() {
                             order.trang_thai?.toLowerCase() || "pending"
                           }
                           onChange={(e) =>
-                            handleStatusChange(
-                              order.id_don,
-                              e.target.value
-                            )
+                            handleStatusChange(order.id_don, e.target.value)
                           }
                           className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           disabled={["done", "completed", "cancelled"].includes(
