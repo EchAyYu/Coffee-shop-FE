@@ -54,7 +54,7 @@ export default function ChatbotWidget() {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl }
+  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl (dataURL) }
 
   const [pendingReservation, setPendingReservation] = useState(null);
   const [confirmingReservation, setConfirmingReservation] = useState(false);
@@ -70,15 +70,28 @@ export default function ChatbotWidget() {
 
   const { addToCart } = useCart();
 
-  // Load sessions
+  // ===== Load sessions (kèm migrate bỏ blob: URL cũ) =====
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSessions(parsed);
-          setActiveSessionId(parsed[0].id);
+          const migrated = parsed.map((s) => ({
+            ...s,
+            messages: Array.isArray(s.messages)
+              ? s.messages.filter(
+                  (m) =>
+                    !(
+                      m.type === "image" &&
+                      typeof m.imageUrl === "string" &&
+                      m.imageUrl.startsWith("blob:")
+                    )
+                )
+              : [],
+          }));
+          setSessions(migrated);
+          setActiveSessionId(migrated[0].id);
           return;
         }
       }
@@ -172,19 +185,23 @@ export default function ChatbotWidget() {
     fileInputRef.current?.click();
   };
 
+  // ✅ Dùng FileReader để tạo dataURL (base64) → lưu được qua F5
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const previewUrl = URL.createObjectURL(file);
-    setSelectedImage({ file, previewUrl });
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result; // data:image/...;base64,....
+      setSelectedImage({ file, previewUrl: dataUrl });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSend = async () => {
     if (isSending) return;
     const text = input.trim();
 
-    // Không có text & không có ảnh thì thôi
     if (!text && !selectedImage) return;
     if (!activeSession) return;
 
@@ -193,7 +210,7 @@ export default function ChatbotWidget() {
     try {
       const baseMessages = activeSession.messages;
 
-      // 1. Đẩy message text của user (nếu có)
+      // 1. Text user
       if (text) {
         appendMessageToActive({
           id: `m_${Date.now()}_user`,
@@ -203,12 +220,12 @@ export default function ChatbotWidget() {
         });
       }
 
-      // 2. Nếu có ảnh → gửi ảnh
+      // 2. Có ảnh → gửi ảnh
       if (selectedImage) {
         const thisImage = selectedImage;
         setSelectedImage(null);
 
-        // Hiện ảnh lên khung chat
+        // Hiển thị ảnh (previewUrl là dataURL, lưu được trong localStorage)
         appendMessageToActive({
           id: `m_${Date.now()}_img`,
           sender: "user",
@@ -231,7 +248,6 @@ export default function ChatbotWidget() {
             : []),
         ]);
 
-        // ✅ Gọi API: chỉ truyền file + history
         const res = await sendImageMessage(thisImage.file, historyForApi);
         const { reply, orderItems } = res.data || {};
 
@@ -256,7 +272,7 @@ export default function ChatbotWidget() {
         return;
       }
 
-      // 3. Nếu chỉ text
+      // 3. Chỉ text
       const historyForApi = buildHistoryFromMessages(baseMessages);
 
       const res = await sendChatbotMessage({
