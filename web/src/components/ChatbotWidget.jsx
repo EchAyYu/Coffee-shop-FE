@@ -27,7 +27,7 @@ function createNewSession(title = "Cuộc trò chuyện mới") {
         sender: "bot",
         type: "text",
         text:
-          "Xin chào, mình là trợ lý LO Coffee ☕. " +
+          "Xin chào, mình là trợ lý LO Coffee ☕.\n" +
           "Bạn có thể hỏi mình về menu, khuyến mãi, gợi ý đồ uống, " +
           "gửi hình đồ uống hoặc nhờ mình hỗ trợ đặt bàn nhé!",
       },
@@ -54,7 +54,7 @@ export default function ChatbotWidget() {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl (dataURL) }
+  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl }
 
   const [pendingReservation, setPendingReservation] = useState(null);
   const [confirmingReservation, setConfirmingReservation] = useState(false);
@@ -185,14 +185,14 @@ export default function ChatbotWidget() {
     fileInputRef.current?.click();
   };
 
-  // ✅ Dùng FileReader để tạo dataURL (base64) → lưu được qua F5
+  // Dùng FileReader → tạo dataURL (base64) để lưu được qua F5
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const dataUrl = reader.result; // data:image/...;base64,....
+      const dataUrl = reader.result;
       setSelectedImage({ file, previewUrl: dataUrl });
     };
     reader.readAsDataURL(file);
@@ -426,6 +426,14 @@ export default function ChatbotWidget() {
 
   if (!activeSession) return null;
 
+  const quickSuggestions = [
+    "Khuyến mãi hôm nay là gì?",
+    "Mình có voucher hoặc mã giảm giá nào không?",
+    "Làm sao để đổi điểm lấy voucher?",
+    "Gợi ý cho mình đồ uống ít cafeine",
+  ];
+
+
   return (
     <>
       {/* Nút mở chatbot */}
@@ -433,7 +441,7 @@ export default function ChatbotWidget() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-xl flex items-center justify-center"
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-orange-500 via-orange-400 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-white shadow-xl shadow-orange-300/60 flex items-center justify-center border border-white/40"
         >
           <FiMessageCircle size={24} />
         </button>
@@ -441,301 +449,334 @@ export default function ChatbotWidget() {
 
       {/* Widget chính */}
       {isOpen && (
-        <div className="fixed bottom-4 right-4 z-40 w-[380px] max-w-full h-[75vh] bg-white shadow-2xl rounded-2xl flex flex-col border border-orange-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-orange-500 text-white rounded-t-2xl">
-            <div className="flex flex-col gap-1">
-              <span className="font-bold text-sm">Trợ lý LO Coffee</span>
-              <span className="text-[11px] opacity-90">
-                Hỏi mình về menu, gợi ý đồ uống, đặt bàn hoặc gửi hình ảnh để
-                tư vấn nhé!
-              </span>
+        <div className="fixed bottom-4 right-4 z-40 w-[380px] max-w-full h-[75vh]">
+          <div className="w-full h-full rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 shadow-2xl border border-orange-100/70 flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-400 text-white">
+              <div className="flex items-center gap-3">
+                <div className="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shadow-inner">
+                  <span className="text-lg">☕</span>
+                  <span className="absolute -right-0.5 -bottom-0.5 w-3 h-3 rounded-full bg-green-400 border border-white"></span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold text-sm">Trợ lý LO Coffee</span>
+                  <span className="text-[11px] opacity-90">
+                    Online • Hỏi mình về menu, khuyến mãi, gợi ý đồ uống hoặc gửi hình để tư vấn nhé!
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-full hover:bg-white/15"
+              >
+                <FiX size={18} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="p-1 rounded-full hover:bg-orange-600"
-            >
-              <FiX size={18} />
-            </button>
-          </div>
 
-          {/* Chọn session + đổi tên + tạo mới */}
-          <div className="px-4 py-2 border-b border-orange-100 bg-orange-50/60 flex items-center gap-2">
-            <select
-              value={activeSession.id}
-              onChange={(e) => {
-                setActiveSessionId(e.target.value);
-                setPendingReservation(null);
-                setPendingOrderItems(null);
-              }}
-              className="flex-1 text-xs rounded-lg border border-orange-200 bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
-            >
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title || "Cuộc trò chuyện"}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              onClick={startEditTitle}
-              className="p-1 rounded-lg border border-orange-200 bg-white text-orange-600 hover:bg-orange-100"
-              title="Đổi tên cuộc trò chuyện"
-            >
-              <FiEdit2 size={14} />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleNewSession}
-              className="px-2 py-1 rounded-lg bg-white text-orange-600 text-xs font-semibold border border-orange-300 hover:bg-orange-100"
-            >
-              Chat mới
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleDeleteSession(activeSession.id)}
-              className="p-1 rounded-lg border border-orange-200 bg-white text-red-500 hover:bg-red-50"
-              title="Xóa cuộc trò chuyện"
-            >
-              <FiTrash2 size={14} />
-            </button>
-          </div>
-
-          {/* Ô đổi tên */}
-          {editingTitle && (
-            <div className="px-4 py-2 border-b border-orange-100 bg-orange-50/80 flex items-center gap-2">
-              <input
-                value={editingTitleValue}
-                onChange={(e) => setEditingTitleValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") applyEditTitle();
-                  if (e.key === "Escape") setEditingTitle(false);
+            {/* Chọn session + đổi tên + tạo mới */}
+            <div className="px-4 py-2 border-b border-orange-100/70 bg-orange-50/80 flex items-center gap-2 text-[11px]">
+              <select
+                value={activeSession.id}
+                onChange={(e) => {
+                  setActiveSessionId(e.target.value);
+                  setPendingReservation(null);
+                  setPendingOrderItems(null);
                 }}
-                className="flex-1 text-xs rounded-lg border border-orange-200 bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                placeholder="Nhập tên cuộc trò chuyện"
-              />
+                className="flex-1 text-[11px] rounded-lg border border-orange-200 bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
+              >
+                {sessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title || "Cuộc trò chuyện"}
+                  </option>
+                ))}
+              </select>
+
               <button
                 type="button"
-                onClick={applyEditTitle}
-                className="px-2 py-1 text-xs rounded-lg bg-orange-500 text-white hover:bg-orange-600"
+                onClick={startEditTitle}
+                className="p-1 rounded-lg border border-orange-200 bg-white text-orange-600 hover:bg-orange-100"
+                title="Đổi tên cuộc trò chuyện"
               >
-                Lưu
+                <FiEdit2 size={14} />
               </button>
+
               <button
                 type="button"
-                onClick={() => setEditingTitle(false)}
-                className="px-2 py-1 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                onClick={handleNewSession}
+                className="px-2 py-1 rounded-lg bg-white text-orange-600 text-[11px] font-semibold border border-orange-300 hover:bg-orange-100"
               >
-                Hủy
+                Chat mới
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDeleteSession(activeSession.id)}
+                className="p-1 rounded-lg border border-orange-200 bg-white text-red-500 hover:bg-red-50"
+                title="Xóa cuộc trò chuyện"
+              >
+                <FiTrash2 size={14} />
               </button>
             </div>
-          )}
 
-          {/* Nội dung chat */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 bg-[#FFF7ED] space-y-3 text-xs custom-scrollbar">
-            {activeSession.messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex ${
-                  m.sender === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+            {/* Ô đổi tên */}
+            {editingTitle && (
+              <div className="px-4 py-2 border-b border-orange-100 bg-orange-50/80 flex items-center gap-2">
+                <input
+                  value={editingTitleValue}
+                  onChange={(e) => setEditingTitleValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") applyEditTitle();
+                    if (e.key === "Escape") setEditingTitle(false);
+                  }}
+                  className="flex-1 text-xs rounded-lg border border-orange-200 bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                  placeholder="Nhập tên cuộc trò chuyện"
+                />
+                <button
+                  type="button"
+                  onClick={applyEditTitle}
+                  className="px-2 py-1 text-[11px] rounded-lg bg-orange-500 text-white hover:bg-orange-600"
+                >
+                  Lưu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingTitle(false)}
+                  className="px-2 py-1 text-[11px] rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+              </div>
+            )}
+
+            {/* Nội dung chat */}
+            <div className="flex-1 overflow-y-auto px-3 py-3 bg-gradient-to-b from-[#FFF7ED] via-[#FFF3E0] to-[#FFEBD6] space-y-3 text-xs custom-scrollbar">
+              {activeSession.messages.map((m) => (
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 shadow-sm ${
-                    m.sender === "user"
-                      ? "bg-orange-500 text-white rounded-br-sm"
-                      : "bg-white text-gray-800 rounded-bl-sm"
+                  key={m.id}
+                  className={`flex ${
+                    m.sender === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {m.type === "image" && m.imageUrl && (
-                    <div className="mb-1">
+                  <div
+                    className={`relative max-w-[80%] rounded-2xl px-3 py-2 shadow-sm ${
+                      m.sender === "user"
+                        ? "bg-orange-500 text-white rounded-br-sm"
+                        : "bg-white/95 text-gray-800 rounded-bl-sm border border-orange-100/60"
+                    }`}
+                  >
+                    {m.type === "image" && m.imageUrl && (
+                      <div className="mb-1">
+                        <img
+                          src={m.imageUrl}
+                          alt="Ảnh bạn gửi"
+                          className="w-full max-w-[220px] rounded-xl object-cover border border-orange-100/70"
+                        />
+                      </div>
+                    )}
+                    {m.text && (
+                      <div className="whitespace-pre-line leading-relaxed">
+                        {m.text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Panel đặt bàn nhanh */}
+              {pendingReservation && (
+                <div className="mt-2 p-3 bg-white/95 border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
+                  <div className="font-semibold text-orange-700 flex items-center gap-1">
+                    <span role="img" aria-label="calendar">
+                      📅
+                    </span>
+                    <span>Xác nhận đặt bàn qua chatbot</span>
+                  </div>
+                  <div className="space-y-1 text-gray-800">
+                    <div>Tên: {pendingReservation.name || "Không rõ"}</div>
+                    <div>SDT: {pendingReservation.phone || "Không rõ"}</div>
+                    <div>
+                      Thời gian:{" "}
+                      {pendingReservation.date && pendingReservation.time
+                        ? `${pendingReservation.date} lúc ${pendingReservation.time}`
+                        : "Chưa rõ (AI chưa hiểu rõ ngày/giờ)"}
+                    </div>
+                    <div>Số người: {pendingReservation.people || 1}</div>
+                    {pendingReservation.note && (
+                      <div>Ghi chú: {pendingReservation.note}</div>
+                    )}
+                  </div>
+                  <div className="pt-1 flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPendingReservation(null)}
+                      className="px-3 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGoToBookingForm}
+                      className="px-3 py-1 rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                      Đi đến form đặt bàn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleQuickReservationFromAI}
+                      disabled={confirmingReservation}
+                      className="px-3 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+                    >
+                      {confirmingReservation
+                        ? "Đang gửi..."
+                        : "Xác nhận & gửi yêu cầu"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Panel thêm vào giỏ từ AI */}
+              {pendingOrderItems && pendingOrderItems.length > 0 && (
+                <div className="mt-2 p-3 bg-white/95 border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
+                  <div className="font-semibold text-orange-700 flex items-center gap-1">
+                    <FiShoppingCart size={12} />
+                    <span>Xác nhận thêm vào giỏ hàng</span>
+                  </div>
+
+                  <ul className="list-disc pl-4 space-y-1 text-gray-800">
+                    {pendingOrderItems.map((item, idx) => (
+                      <li key={idx}>
+                        <span className="font-semibold">
+                          {item.quantity || 1} x {item.ten_mon}
+                        </span>{" "}
+                        <span className="text-gray-500">
+                          ({Number(item.gia || 0).toLocaleString("vi-VN")} ₫)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="pt-1 flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPendingOrderItems(null)}
+                      className="px-3 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPendingOrder(false)}
+                      disabled={processingOrder}
+                      className="px-3 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+                    >
+                      {processingOrder ? "Đang thêm..." : "Thêm vào giỏ hàng"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPendingOrder(true)}
+                      disabled={processingOrder}
+                      className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50"
+                    >
+                      {processingOrder ? "Đang xử lý..." : "Thêm & thanh toán"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Preview ảnh đang chọn */}
+            {selectedImage && (
+              <div className="px-3 pt-2 pb-2 bg-orange-50 border-t border-orange-100 text-[11px]">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
                       <img
-                        src={m.imageUrl}
-                        alt="Ảnh bạn gửi"
-                        className="w-full max-w-[220px] rounded-xl object-cover border border-orange-100"
+                        src={selectedImage.previewUrl}
+                        alt="Preview"
+                        className="w-11 h-11 rounded-lg object-cover border border-orange-200 shadow-sm"
                       />
                     </div>
-                  )}
-                  {m.text && (
-                    <div className="whitespace-pre-line">{m.text}</div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Panel đặt bàn nhanh */}
-            {pendingReservation && (
-              <div className="mt-2 p-3 bg-white border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
-                <div className="font-semibold text-orange-700 flex items-center gap-1">
-                  <span role="img" aria-label="calendar">
-                    📅
-                  </span>
-                  <span>Xác nhận đặt bàn qua chatbot</span>
-                </div>
-                <div className="space-y-1 text-gray-800">
-                  <div>Tên: {pendingReservation.name || "Không rõ"}</div>
-                  <div>SDT: {pendingReservation.phone || "Không rõ"}</div>
-                  <div>
-                    Thời gian:{" "}
-                    {pendingReservation.date && pendingReservation.time
-                      ? `${pendingReservation.date} lúc ${pendingReservation.time}`
-                      : "Chưa rõ (AI chưa hiểu rõ ngày/giờ)"}
-                  </div>
-                  <div>Số người: {pendingReservation.people || 1}</div>
-                  {pendingReservation.note && (
-                    <div>Ghi chú: {pendingReservation.note}</div>
-                  )}
-                </div>
-                <div className="pt-1 flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPendingReservation(null)}
-                    className="px-3 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleGoToBookingForm}
-                    className="px-3 py-1 rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50"
-                  >
-                    Đi đến form đặt bàn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleQuickReservationFromAI}
-                    disabled={confirmingReservation}
-                    className="px-3 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
-                  >
-                    {confirmingReservation
-                      ? "Đang gửi..."
-                      : "Xác nhận & gửi yêu cầu"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Panel thêm vào giỏ từ AI */}
-            {pendingOrderItems && pendingOrderItems.length > 0 && (
-              <div className="mt-2 p-3 bg-white border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
-                <div className="font-semibold text-orange-700 flex items-center gap-1">
-                  <FiShoppingCart size={12} />
-                  <span>Xác nhận thêm vào giỏ hàng</span>
-                </div>
-
-                <ul className="list-disc pl-4 space-y-1 text-gray-800">
-                  {pendingOrderItems.map((item, idx) => (
-                    <li key={idx}>
-                      <span className="font-semibold">
-                        {item.quantity || 1} x {item.ten_mon}
-                      </span>{" "}
-                      <span className="text-gray-500">
-                        ({Number(item.gia || 0).toLocaleString("vi-VN")} ₫)
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-gray-800">
+                        Ảnh sẽ được gửi kèm tin nhắn tiếp theo
                       </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="pt-1 flex flex-wrap justify-end gap-2">
+                      <span className="text-[10px] text-gray-500">
+                        Bạn có thể mô tả thêm: ví dụ "Gợi ý món giống như ly này" để mình tư vấn chuẩn hơn.
+                      </span>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setPendingOrderItems(null)}
-                    className="px-3 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                    onClick={() => setSelectedImage(null)}
+                    className="text-gray-400 hover:text-gray-700"
                   >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPendingOrder(false)}
-                    disabled={processingOrder}
-                    className="px-3 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
-                  >
-                    {processingOrder ? "Đang thêm..." : "Thêm vào giỏ hàng"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPendingOrder(true)}
-                    disabled={processingOrder}
-                    className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50"
-                  >
-                    {processingOrder ? "Đang xử lý..." : "Thêm & thanh toán"}
+                    <FiX size={16} />
                   </button>
                 </div>
               </div>
             )}
 
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Preview ảnh đang chọn */}
-          {selectedImage && (
-            <div className="px-3 pt-2 pb-1 bg-orange-50 border-t border-orange-100 text-[11px] flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <img
-                  src={selectedImage.previewUrl}
-                  alt="Preview"
-                  className="w-10 h-10 rounded-lg object-cover border border-orange-200"
-                />
-                <span className="text-gray-700">
-                  Ảnh sẽ được gửi kèm tin nhắn tiếp theo
-                </span>
+            {/* Input */}
+            <div className="px-3 pt-2 pb-3 border-t border-orange-100 bg-white/95">
+              {/* quick suggestions */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {quickSuggestions.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setInput(q)}
+                    className="px-2 py-1 rounded-full bg-orange-50 text-[10px] text-orange-700 border border-orange-100 hover:bg-orange-100"
+                  >
+                    {q}
+                  </button>
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedImage(null)}
-                className="text-gray-400 hover:text-gray-700"
-              >
-                <FiX size={16} />
-              </button>
-            </div>
-          )}
 
-          {/* Input */}
-          <div className="px-3 py-2 border-t border-orange-100 bg-white rounded-b-2xl">
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={handleSelectImageClick}
-                className="p-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600"
-              >
-                <FiImage size={18} />
-              </button>
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectImageClick}
+                  className="p-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 flex items-center justify-center"
+                  title="Gửi hình đồ uống hoặc bánh"
+                >
+                  <FiImage size={18} />
+                </button>
 
-              <textarea
-                rows={1}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Nhập câu hỏi của bạn..."
-                className="flex-1 max-h-24 rounded-xl border border-gray-200 px-3 py-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
+                <textarea
+                  rows={1}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Nhập câu hỏi của bạn..."
+                  className="flex-1 max-h-24 rounded-xl border border-gray-200 px-3 py-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400 bg-white/90"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={isSending}
+                  className="p-2 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-white disabled:opacity-60 shadow-sm shadow-orange-300/60"
+                >
+                  <FiSend size={18} />
+                </button>
+              </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                className="hidden"
               />
-
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={isSending}
-                className="p-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
-              >
-                <FiSend size={18} />
-              </button>
             </div>
-
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              className="hidden"
-            />
           </div>
         </div>
       )}

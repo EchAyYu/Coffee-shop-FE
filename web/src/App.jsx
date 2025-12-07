@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./index.css";
-
+import ChatbotTestPage from "./pages/ChatbotTestPage";
+<Route path="/chatbot-test" element={<ChatbotTestPage />} />
 // ---- Context ----
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./components/CartContext";
