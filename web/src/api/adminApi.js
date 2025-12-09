@@ -128,7 +128,7 @@ export const deleteProduct = (id) => adminApi.delete(`/products/${id}`);
 // =====================
 
 // Danh sách đơn hàng admin
-export const getOrdersAdmin = () => adminApi.get("/admin/orders");
+export const getOrdersAdmin = (params) => adminApi.get("/admin/orders", { params });
 
 // Chi tiết đơn cho admin
 export const getOrderDetailAdmin = (id) =>
@@ -163,8 +163,8 @@ export const reservations = {
   my: () => adminApi.get("/reservations/my"),
 
   // list/update/delete/getById vẫn dùng /reservations như cũ
-  list: () => adminApi.get("/reservations"),
-  getById: (id) => adminApi.get(`/reservations/${id}`),
+  list: (params) => adminApi.get("/reservations", { params }), 
+  getById: (id) => adminApi.get(`/reservations/${id}`),
   update: (id, data) => adminApi.put(`/reservations/${id}`, data),
   delete: (id) => adminApi.delete(`/reservations/${id}`),
 
