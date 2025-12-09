@@ -16,6 +16,7 @@ import {
   FaEnvelope,
   FaStickyNote,
   FaSpinner,
+  FaMobileAlt,
 } from "react-icons/fa";
 
 export default function CheckoutPage() {
@@ -38,15 +39,25 @@ export default function CheckoutPage() {
     phone: "",
     emailInvoice: "",
     note: "",
-    pttt: "COD",
+    pttt: "COD", // COD | BANK_TRANSFER
     address: { street: "", ward: "", district: "", province: "Cần Thơ" },
   });
 
-  // Config VietQR
+  // 🔹 Hình thức chuyển khoản cụ thể: VietQR hoặc MoMo (FE-only)
+  const [transferMethod, setTransferMethod] = useState("VIETQR"); // 'VIETQR' | 'MOMO'
+
+  // Config VietQR (ngân hàng)
   const VIETQR_BANK_ID = "970436";
   const VIETQR_ACCOUNT_NO = "9878303713";
   const VIETQR_ACCOUNT_NAME = "HUYNH NGOC HAU";
   const VIETQR_TEMPLATE = "compact2";
+
+  // Config MoMo cá nhân (hiển thị QR tĩnh)
+  // 👉 Bạn hãy đặt file QR MoMo vào: public/images/momo-qr.png
+  // hoặc đổi URL bên dưới cho đúng ảnh QR của bạn
+  const MOMO_QR_IMAGE_URL = "/images/momo-qr.png";
+  const MOMO_ACCOUNT_NAME = "HUYNH NGOC HAU";
+  const MOMO_NOTE_PREFIX = "LOCOFFEE";
 
   // Prefill data
   useEffect(() => {
@@ -130,14 +141,17 @@ export default function CheckoutPage() {
     [form.phone, shortAddress, form.receiver_name]
   );
 
+  const finalTotal = useMemo(
+    () => Math.max(0, totalPrice - discount),
+    [totalPrice, discount]
+  );
+
   const vietQRUrl = useMemo(
     () =>
-      `https://img.vietqr.io/image/${VIETQR_BANK_ID}-${VIETQR_ACCOUNT_NO}-${VIETQR_TEMPLATE}.png?amount=${
-        totalPrice - discount
-      }&addInfo=${orderDescription}&accountName=${encodeURIComponent(
+      `https://img.vietqr.io/image/${VIETQR_BANK_ID}-${VIETQR_ACCOUNT_NO}-${VIETQR_TEMPLATE}.png?amount=${finalTotal}&addInfo=${orderDescription}&accountName=${encodeURIComponent(
         VIETQR_ACCOUNT_NAME
       )}`,
-    [totalPrice, discount, orderDescription]
+    [finalTotal, orderDescription]
   );
 
   const usableVouchers = useMemo(() => {
@@ -232,7 +246,7 @@ export default function CheckoutPage() {
       if (form.pttt === "BANK_TRANSFER" && !form.emailInvoice) {
         Swal.fire(
           "Thiếu email",
-          "Vui lòng nhập Email để nhận thông tin chuyển khoản.",
+          "Vui lòng nhập Email để nhận hóa đơn/biên nhận thanh toán.",
           "warning"
         );
         setLoading(false);
@@ -263,26 +277,53 @@ export default function CheckoutPage() {
           .join(", "),
         email_nhan: form.emailInvoice,
         ghi_chu: form.note,
+        // 🧩 BE hiện chỉ có ENUM: COD | BANK_TRANSFER
         pttt: form.pttt,
         items: cart.map((i) => ({
           id_mon: i.id_mon || i._id,
           so_luong: i.so_luong,
         })),
         voucher_code: discount > 0 ? voucherCode.trim() : undefined,
+        // (Tùy chọn) Nếu sau này bạn muốn biết kênh cụ thể bên BE,
+        // có thể mở rộng DB và gửi thêm:
+        // payment_channel: form.pttt === "COD" ? "COD" : transferMethod, 
       };
 
       const res = await createOrder(payload);
 
-      Swal.fire({
-        icon: "success",
-        title: "Đặt hàng thành công!",
-        text: "Cảm ơn bạn đã ủng hộ LO COFFEE. Đơn hàng của bạn đang được xử lý.",
-        confirmButtonText: "Về trang chủ",
-        confirmButtonColor: "#EA580C",
-      }).then(() => {
-        clearCart();
-        navigate("/");
-      });
+      // 🎯 Flow:
+      // - COD: xử lý như cũ
+      // - BANK_TRANSFER (VietQR/MoMo): tạo đơn trạng thái pending_payment,
+      //   BE sẽ tự động xác nhận + gửi email hóa đơn sau khi nhận webhook.
+      if (form.pttt === "COD") {
+        Swal.fire({
+          icon: "success",
+          title: "Đặt hàng thành công!",
+          text: "Cảm ơn bạn đã ủng hộ LO COFFEE. Đơn hàng của bạn đang được xử lý.",
+          confirmButtonText: "Về trang chủ",
+          confirmButtonColor: "#EA580C",
+        }).then(() => {
+          clearCart();
+          navigate("/");
+        });
+      } else {
+        Swal.fire({
+          icon: "info",
+          title: "Tạo đơn hàng thành công!",
+          html: `
+            <div style="text-align:left;font-size:14px">
+              <p>Đơn hàng chuyển khoản của bạn đã được tạo với trạng thái <b>Chờ thanh toán</b>.</p>
+              <p>Vui lòng hoàn tất chuyển khoản theo hướng dẫn ở mục <b>Phương thức thanh toán</b>.</p>
+              <p>Sau khi hệ thống xác nhận giao dịch, bạn sẽ nhận được email hóa đơn/biên nhận.</p>
+            </div>
+          `,
+          confirmButtonText: "Đã hiểu",
+          confirmButtonColor: "#EA580C",
+        }).then(() => {
+          clearCart();
+          navigate("/"); // hoặc điều hướng sang trang "Đơn hàng của tôi"
+        });
+      }
     } catch (err) {
       const msg = err?.message || "Đặt hàng thất bại.";
       Swal.fire("Lỗi", msg, "error");
@@ -449,7 +490,9 @@ export default function CheckoutPage() {
               </span>
               Phương thức thanh toán
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Chọn COD / Chuyển khoản */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <label
                 className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                   form.pttt === "COD"
@@ -491,46 +534,146 @@ export default function CheckoutPage() {
                 <div className="flex items-center gap-2">
                   <FaQrcode className="text-blue-600 text-xl" />
                   <span className="font-medium text-gray-800 dark:text-white">
-                    Chuyển khoản (QR)
+                    Chuyển khoản (QR / MoMo)
                   </span>
                 </div>
               </label>
             </div>
 
-            {/* Thông tin chuyển khoản */}
+            {/* Nếu là chuyển khoản: chọn VietQR / MoMo */}
             {form.pttt === "BANK_TRANSFER" && (
-              <div className="mt-6 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 animate-fade-in">
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                  <div className="flex-1 space-y-2 text-sm text-blue-900 dark:text-blue-100">
-                    <p>
-                      Ngân hàng: <b>Vietcombank</b>
-                    </p>
-                    <p>
-                      Số TK:{" "}
-                      <b className="font-mono text-lg">{VIETQR_ACCOUNT_NO}</b>
-                    </p>
-                    <p>
-                      Chủ TK: <b>{VIETQR_ACCOUNT_NAME}</b>
-                    </p>
-                    <p>
-                      Nội dung:{" "}
-                      <b className="bg-yellow-200 dark:bg-yellow-800 dark:text-white px-1 rounded text-black">
-                        {form.phone} - {form.receiver_name}
-                      </b>
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <img
-                      src={vietQRUrl}
-                      alt="QR Code"
-                      className="w-32 h-32 rounded-lg border border-white shadow-md bg-white p-1"
-                    />
-                    <p className="text-xs mt-1 opacity-70">
-                      Quét để thanh toán
-                    </p>
-                  </div>
+              <>
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setTransferMethod("VIETQR")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                      transferMethod === "VIETQR"
+                        ? "bg-blue-600 text-white border-blue-600 shadow"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <FaQrcode />
+                    VietQR Ngân hàng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransferMethod("MOMO")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                      transferMethod === "MOMO"
+                        ? "bg-pink-600 text-white border-pink-600 shadow"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <FaMobileAlt />
+                    Ví MoMo cá nhân
+                  </button>
                 </div>
-              </div>
+
+                {/* Nội dung hướng dẫn tương ứng */}
+                {transferMethod === "VIETQR" ? (
+                  <div className="mt-2 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 animate-fade-in">
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                      <div className="flex-1 space-y-2 text-sm text-blue-900 dark:text-blue-100">
+                        <p>
+                          Ngân hàng: <b>Vietcombank</b>
+                        </p>
+                        <p>
+                          Số TK:{" "}
+                          <b className="font-mono text-lg">
+                            {VIETQR_ACCOUNT_NO}
+                          </b>
+                        </p>
+                        <p>
+                          Chủ TK: <b>{VIETQR_ACCOUNT_NAME}</b>
+                        </p>
+                        <p>
+                          Số tiền:{" "}
+                          <b>
+                            {finalTotal.toLocaleString("vi-VN")} ₫
+                          </b>
+                        </p>
+                        <p>
+                          Nội dung chuyển khoản:{" "}
+                          <b className="bg-yellow-200 dark:bg-yellow-800 dark:text-white px-1 rounded text-black">
+                            {form.phone || "SDT"} -{" "}
+                            {form.receiver_name || "KHACH HANG"}
+                          </b>
+                        </p>
+                        <ul className="mt-2 text-xs list-disc pl-4 opacity-80">
+                          <li>
+                            Vui lòng chuyển khoản đúng số tiền và nội dung để
+                            hệ thống tự động xác nhận.
+                          </li>
+                          <li>
+                            Sau khi thanh toán thành công, bạn sẽ nhận email
+                            hóa đơn/biên nhận.
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="text-center">
+                        <img
+                          src={vietQRUrl}
+                          alt="QR Code VietQR"
+                          className="w-32 h-32 rounded-lg border border-white shadow-md bg-white p-1"
+                        />
+                        <p className="text-xs mt-1 opacity-70">
+                          Quét để thanh toán VietQR
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 p-5 bg-pink-50 dark:bg-pink-900/20 rounded-xl border border-pink-100 dark:border-pink-800/50 animate-fade-in">
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                      <div className="flex-1 space-y-2 text-sm text-pink-900 dark:text-pink-100">
+                        <p>
+                          Ví: <b>MoMo</b>
+                        </p>
+                        <p>
+                          Tên tài khoản: <b>{MOMO_ACCOUNT_NAME}</b>
+                        </p>
+                        <p>
+                          Số tiền:{" "}
+                          <b>
+                            {finalTotal.toLocaleString("vi-VN")} ₫
+                          </b>
+                        </p>
+                        <p>
+                          Nội dung chuyển tiền:{" "}
+                          <b className="bg-yellow-200 dark:bg-yellow-800 dark:text-white px-1 rounded text-black">
+                            {MOMO_NOTE_PREFIX}-{form.phone || "SDT"}
+                          </b>
+                        </p>
+                        <ul className="mt-2 text-xs list-disc pl-4 opacity-80">
+                          <li>
+                            Mở ứng dụng MoMo, chọn &quot;Quét mã&quot; và quét
+                            QR bên cạnh.
+                          </li>
+                          <li>
+                            Điền đúng nội dung chuyển tiền để hệ thống tự động
+                            đối chiếu giao dịch.
+                          </li>
+                          <li>
+                            Sau khi thanh toán, email hóa đơn sẽ được gửi đến{" "}
+                            <b>{form.emailInvoice || "email của bạn"}</b>.
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="text-center">
+                        <img
+                          src={MOMO_QR_IMAGE_URL}
+                          alt="QR MoMo"
+                          className="w-32 h-32 rounded-lg border border-white shadow-md bg-white p-1 object-contain"
+                        />
+                        <p className="text-xs mt-1 opacity-70">
+                          Quét để thanh toán qua MoMo
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -615,7 +758,11 @@ export default function CheckoutPage() {
                             isUsed
                               ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
                               : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-orange-300"
-                          } ${hasDiscountedItem ? "opacity-60 cursor-not-allowed" : ""}`}
+                          } ${
+                            hasDiscountedItem
+                              ? "opacity-60 cursor-not-allowed"
+                              : ""
+                          }`}
                         >
                           <div className="flex items-center gap-3">
                             <FaTicketAlt
@@ -661,7 +808,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-2 border-t border-dashed border-gray-200 dark:border-gray-800">
                 <span>Tổng cộng</span>
                 <span className="text-orange-600 dark:text-orange-500">
-                  {(totalPrice - discount).toLocaleString("vi-VN")} ₫
+                  {finalTotal.toLocaleString("vi-VN")} ₫
                 </span>
               </div>
             </div>
@@ -671,7 +818,15 @@ export default function CheckoutPage() {
               disabled={loading}
               className="w-full mt-6 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/30 transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading ? <FaSpinner className="animate-spin" /> : "ĐẶT HÀNG NGAY"}
+              {loading ? (
+                <FaSpinner className="animate-spin" />
+              ) : form.pttt === "COD" ? (
+                "ĐẶT HÀNG (COD)"
+              ) : transferMethod === "VIETQR" ? (
+                "TẠO ĐƠN & THANH TOÁN VIETQR"
+              ) : (
+                "TẠO ĐƠN & THANH TOÁN MOMO"
+              )}
             </button>
           </div>
         </div>
