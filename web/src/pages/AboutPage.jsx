@@ -1,7 +1,89 @@
+import React, { useEffect, useState } from 'react';
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock, FaSeedling, FaUserTie, FaHeart } from 'react-icons/fa';
 
 export default function AboutPage() {
-  
+  const DEST_ADDRESS = "326A Nguyễn Văn Linh, An Khánh, Ninh Kiều, Cần Thơ Vietnam";
+
+  const [destCoords, setDestCoords] = useState(null); // { lat, lon }
+  const [userCoords, setUserCoords] = useState(null);
+  const [distanceKm, setDistanceKm] = useState(null);
+  const [geoError, setGeoError] = useState(null);
+  const [geocodingError, setGeocodingError] = useState(null);
+
+  // helper to geocode the DEST_ADDRESS and set `destCoords` (returns coords or null)
+  const geocodeAddress = async () => {
+    try {
+      const q = encodeURIComponent(DEST_ADDRESS);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`;
+      const r = await fetch(url);
+      const arr = await r.json();
+      if (Array.isArray(arr) && arr.length > 0) {
+        const first = arr[0];
+        const coords = { lat: parseFloat(first.lat), lon: parseFloat(first.lon) };
+        setDestCoords(coords);
+        setGeocodingError(null);
+        return coords;
+      } else {
+        setGeocodingError('Không tìm thấy vị trí trên bản đồ.');
+        return null;
+      }
+    } catch (e) {
+      console.error('Geocoding failed', e);
+      setGeocodingError('Không thể truy vấn dịch vụ địa chỉ.');
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    // initial geocode attempt
+    geocodeAddress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const haversineKm = (a, b) => {
+    const toRad = (v) => (v * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(b.lat - a.lat);
+    const dLon = toRad(b.lon - a.lon);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLon = Math.sin(dLon / 2);
+    const aa = sinDLat * sinDLat + sinDLon * sinDLon * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+    return R * c;
+  };
+
+  const locateAndCompute = async () => {
+    setGeoError(null);
+    setDistanceKm(null);
+    if (!navigator.geolocation) {
+      setGeoError('Trình duyệt không hỗ trợ Geolocation.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const uc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        setUserCoords(uc);
+        let dc = destCoords;
+        if (!dc) {
+          // try to geocode now if not available
+          dc = await geocodeAddress();
+        }
+        if (dc) {
+          const d = haversineKm(uc, dc);
+          setDistanceKm(d);
+        } else {
+          setGeoError('Chưa xác định được vị trí đích, vui lòng thử lại sau.');
+        }
+      },
+      (err) => {
+        console.error('Geolocation error', err);
+        setGeoError(err.message || 'Không thể lấy vị trí người dùng.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
   const features = [
     {
       icon: <FaSeedling />,
@@ -154,17 +236,53 @@ export default function AboutPage() {
           {/* Bản đồ (Chiếm 3 phần) */}
           <div className="lg:col-span-3 relative min-h-[400px]">
             {/* Đây là ảnh giả lập bản đồ. Bạn có thể thay bằng iframe Google Maps thật */}
-            <iframe 
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3928.8415184086434!2d105.7684266147119!3d10.029933692830636!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31a0895a51d60719%3A0x9d76b0035f6d53d0!2zRGFpIGhvYyBDYW4gVGhv!5e0!3m2!1sen!2s!4v1679563564323!5m2!1sen!2s" 
-              width="100%" 
-              height="100%" 
-              style={{ border: 0, filter: 'grayscale(20%) contrast(1.2) opacity(0.9)' }} 
-              allowFullScreen="" 
-              loading="lazy" 
+            <iframe
+              src={
+                destCoords
+                  ? `https://www.google.com/maps?q=${destCoords.lat},${destCoords.lon}&z=17&output=embed`
+                  : `https://www.google.com/maps?q=${encodeURIComponent(DEST_ADDRESS)}&z=15&output=embed`
+              }
+              width="100%"
+              height="100%"
+              style={{ border: 0, filter: 'grayscale(20%) contrast(1.2) opacity(0.9)' }}
+              allowFullScreen
+              loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               className="absolute inset-0 w-full h-full"
             ></iframe>
             
+            {/* Độ dài/định vị: overlay control */}
+            <div className="absolute top-4 right-4 z-20 bg-white/90 dark:bg-black/70 p-3 rounded-lg border border-gray-100 shadow-md">
+              <div className="text-sm text-gray-700 dark:text-gray-200 mb-2">
+                <strong>Địa chỉ:</strong>
+                <div className="text-xs text-gray-500">{DEST_ADDRESS}</div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={locateAndCompute}
+                  className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm"
+                >
+                  Tính khoảng cách
+                </button>
+                <button
+                  onClick={() => { setDistanceKm(null); setUserCoords(null); setGeoError(null); }}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm"
+                >
+                  Xóa
+                </button>
+              </div>
+              <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                {geocodingError && <div className="text-red-500">{geocodingError}</div>}
+                {geoError && <div className="text-red-500">{geoError}</div>}
+                {distanceKm != null && (
+                  <div>Khoảng cách: <strong>{distanceKm < 1 ? `${Math.round(distanceKm*1000)} m` : `${distanceKm.toFixed(2)} km`}</strong></div>
+                )}
+                {userCoords && (
+                  <div className="text-xs text-gray-500">Vị trí bạn: {userCoords.lat.toFixed(5)}, {userCoords.lon.toFixed(5)}</div>
+                )}
+              </div>
+            </div>
+
             {/* Overlay gradient để map hòa vào nền */}
             <div className="absolute inset-0 pointer-events-none border-l border-gray-200 dark:border-gray-800"></div>
           </div>
