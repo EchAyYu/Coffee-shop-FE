@@ -27,7 +27,7 @@ export default function AboutPage() {
     { icon: FaMapMarkerAlt, text: "326A Nguyễn Văn Linh, An Khánh, Ninh Kiều, Cần Thơ Vietnam", label: "Địa chỉ" },
     { icon: FaClock, text: "06:00 - 23:30 (Mở cửa hàng ngày)", label: "Giờ mở cửa" },
     { icon: FaPhoneAlt, text: "0292 3943 516", label: "Hotline" },
-    { icon: FaEnvelope, text: "contact@locoffee.vn", label: "Email" },
+    { icon: FaEnvelope, text: "hauhayho2929@gmail.com", label: "Email" },
   ];
 
   return (
