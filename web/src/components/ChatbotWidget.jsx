@@ -200,9 +200,10 @@ export default function ChatbotWidget() {
     reader.readAsDataURL(file);
   };
 
-  const handleSend = async () => {
+  const handleSend = async (overrideText) => {
     if (isSending) return;
-    const text = input.trim();
+    const raw = overrideText !== undefined ? overrideText : input;
+    const text = (raw || "").trim();
 
     if (!text && !selectedImage) return;
     if (!activeSession) return;
@@ -741,7 +742,7 @@ export default function ChatbotWidget() {
                   <button
                     key={q}
                     type="button"
-                    onClick={() => setInput(q)}
+                    onClick={() => handleSend(q)}
                     className="px-2 py-1 rounded-full bg-orange-50 text-[10px] text-orange-700 border border-orange-100 hover:bg-orange-100"
                   >
                     {q}
@@ -775,7 +776,7 @@ export default function ChatbotWidget() {
 
                 <button
                   type="button"
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={isSending}
                   className="p-2 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-white disabled:opacity-60 shadow-sm shadow-orange-300/60"
                 >
