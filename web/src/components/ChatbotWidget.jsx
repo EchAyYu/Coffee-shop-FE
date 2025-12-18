@@ -8,33 +8,20 @@ import {
   FiEdit2,
   FiMessageCircle,
   FiShoppingCart,
-  FiZap,
-  FiClock,
-  FiCoffee,
-  FiTag,
 } from "react-icons/fi";
 import { reservations } from "../api/api";
 import { sendChatbotMessage, sendImageMessage } from "../api/chatbotApi";
 import { useCart } from "./CartContext";
+import { useAuth } from "../context/AuthContext";
 
-const STORAGE_KEY = "lo_coffee_chatbot_sessions_v4";
-
-// === giới hạn để tránh localStorage bị full do ảnh base64 ===
-const MAX_SESSIONS = 8; // giữ tối đa 8 cuộc trò chuyện
-const MAX_MESSAGES_PER_SESSION = 60; // giữ tối đa 60 tin/1 session
-const MAX_IMAGE_DATAURL_CHARS = 220_000; // ~220KB base64 string (an toàn hơn)
-const MAX_TOTAL_STORAGE_CHARS = 3_500_000; // ~3.5MB (localStorage thường ~5MB)
-
-function nowISO() {
-  return new Date().toISOString();
-}
+const STORAGE_KEY = "lo_coffee_chatbot_sessions_v3";
 
 function createNewSession(title = "Cuộc trò chuyện mới") {
   const id = `session_${Date.now()}`;
   return {
     id,
     title,
-    createdAt: nowISO(),
+    createdAt: new Date().toISOString(),
     messages: [
       {
         id: `m_${Date.now()}`,
@@ -59,60 +46,6 @@ function buildHistoryFromMessages(messages = []) {
     }));
 }
 
-function safeTrimSessions(sessions) {
-  // 1) trim số session
-  let out = Array.isArray(sessions) ? sessions.slice(0, MAX_SESSIONS) : [];
-
-  // 2) trim số messages / session
-  out = out.map((s) => ({
-    ...s,
-    messages: Array.isArray(s.messages)
-      ? s.messages.slice(-MAX_MESSAGES_PER_SESSION)
-      : [],
-  }));
-
-  return out;
-}
-
-function estimateStorageChars(obj) {
-  try {
-    return JSON.stringify(obj).length;
-  } catch {
-    return Number.MAX_SAFE_INTEGER;
-  }
-}
-
-function TypingIndicator() {
-  return (
-    <div className="flex justify-start">
-      <div className="max-w-[80%] rounded-2xl px-3 py-2 bg-white/95 text-gray-800 rounded-bl-sm border border-orange-100/60 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-gray-600">Đang trả lời</span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:-0.2s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:-0.1s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" />
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QuickActionButton({ icon, label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-orange-50 text-[10px] text-orange-700 border border-orange-100 hover:bg-orange-100 active:scale-[0.98] transition"
-      title={label}
-    >
-      {icon}
-      <span className="whitespace-nowrap">{label}</span>
-    </button>
-  );
-}
-
 export default function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -122,10 +55,7 @@ export default function ChatbotWidget() {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  // Typing indicator riêng (để hiển thị khi bot đang trả lời)
-  const [isBotTyping, setIsBotTyping] = useState(false);
-
-  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl, persistable }
+  const [selectedImage, setSelectedImage] = useState(null); // { file, previewUrl }
 
   const [pendingReservation, setPendingReservation] = useState(null);
   const [confirmingReservation, setConfirmingReservation] = useState(false);
@@ -138,11 +68,11 @@ export default function ChatbotWidget() {
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const inputRef = useRef(null);
 
   const { addToCart } = useCart();
+  const { user } = useAuth();
 
-  // ===== Load sessions (migrate bỏ blob URL cũ + trim) =====
+  // ===== Load sessions (kèm migrate bỏ blob: URL cũ) =====
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -162,9 +92,8 @@ export default function ChatbotWidget() {
                 )
               : [],
           }));
-          const trimmed = safeTrimSessions(migrated);
-          setSessions(trimmed);
-          setActiveSessionId(trimmed[0].id);
+          setSessions(migrated);
+          setActiveSessionId(migrated[0].id);
           return;
         }
       }
@@ -177,33 +106,10 @@ export default function ChatbotWidget() {
     setActiveSessionId(first.id);
   }, []);
 
-  // ===== Save sessions (có guard tránh overflow) =====
+  // Save sessions
   useEffect(() => {
-    if (!sessions.length) return;
-
-    const trimmed = safeTrimSessions(sessions);
-    const size = estimateStorageChars(trimmed);
-
-    // nếu quá lớn -> trim mạnh tay hơn (bỏ bớt message cũ nhất)
-    let finalSessions = trimmed;
-    if (size > MAX_TOTAL_STORAGE_CHARS) {
-      finalSessions = trimmed.map((s) => ({
-        ...s,
-        messages: s.messages.slice(-35), // trim sâu
-      }));
-    }
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalSessions));
-    } catch (e) {
-      console.warn("localStorage full, trimming more...", e);
-      // nếu vẫn fail -> chỉ giữ 1 session gần nhất
-      try {
-        const one = [finalSessions[0]].filter(Boolean);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(one));
-      } catch {
-        // bỏ qua
-      }
+    if (sessions.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
     }
   }, [sessions]);
 
@@ -216,15 +122,7 @@ export default function ChatbotWidget() {
   useEffect(() => {
     if (!isOpen) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeSession?.messages?.length, isOpen, isBotTyping]);
-
-  // Auto-resize textarea nhẹ
-  useEffect(() => {
-    if (!inputRef.current) return;
-    inputRef.current.style.height = "0px";
-    inputRef.current.style.height =
-      Math.min(inputRef.current.scrollHeight, 96) + "px";
-  }, [input]);
+  }, [activeSession, isOpen]);
 
   // Session actions
   const handleNewSession = () => {
@@ -234,8 +132,6 @@ export default function ChatbotWidget() {
     setActiveSessionId(newSession.id);
     setPendingReservation(null);
     setPendingOrderItems(null);
-    setSelectedImage(null);
-    setInput("");
   };
 
   const handleDeleteSession = (id) => {
@@ -253,34 +149,6 @@ export default function ChatbotWidget() {
     });
     setPendingReservation(null);
     setPendingOrderItems(null);
-    setSelectedImage(null);
-  };
-
-  const handleClearMessages = () => {
-    if (!activeSession) return;
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeSession.id
-          ? {
-              ...s,
-              messages: [
-                {
-                  id: `m_${Date.now()}`,
-                  sender: "bot",
-                  type: "text",
-                  text:
-                    "Mình đã xóa nội dung chat ở cuộc trò chuyện này ✅\n" +
-                    "Bạn muốn hỏi về menu, khuyến mãi, đặt bàn hay đặt món?",
-                },
-              ],
-            }
-          : s
-      )
-    );
-    setPendingReservation(null);
-    setPendingOrderItems(null);
-    setSelectedImage(null);
-    setInput("");
   };
 
   const startEditTitle = () => {
@@ -296,7 +164,9 @@ export default function ChatbotWidget() {
       return;
     }
     setSessions((prev) =>
-      prev.map((s) => (s.id === activeSession.id ? { ...s, title: value } : s))
+      prev.map((s) =>
+        s.id === activeSession.id ? { ...s, title: value } : s
+      )
     );
     setEditingTitle(false);
   };
@@ -307,19 +177,17 @@ export default function ChatbotWidget() {
     setSessions((prev) =>
       prev.map((s) =>
         s.id === activeSession.id
-          ? {
-              ...s,
-              messages: [...s.messages, msg].slice(-MAX_MESSAGES_PER_SESSION),
-            }
+          ? { ...s, messages: [...s.messages, msg] }
           : s
       )
     );
   };
 
-  const handleSelectImageClick = () => fileInputRef.current?.click();
+  const handleSelectImageClick = () => {
+    fileInputRef.current?.click();
+  };
 
-  // Dùng FileReader → dataURL để preview
-  // Nhưng nếu dataURL quá lớn, vẫn preview OK, chỉ là không “persist” vào localStorage
+  // Dùng FileReader → tạo dataURL (base64) để lưu được qua F5
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -327,38 +195,24 @@ export default function ChatbotWidget() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUrl = reader.result;
-      const dataLen = typeof dataUrl === "string" ? dataUrl.length : 0;
-
-      setSelectedImage({
-        file,
-        previewUrl: dataUrl,
-        persistable: dataLen > 0 && dataLen <= MAX_IMAGE_DATAURL_CHARS,
-      });
+      setSelectedImage({ file, previewUrl: dataUrl });
     };
     reader.readAsDataURL(file);
   };
 
-  const quickSendText = async (text) => {
-    setInput("");
-    await handleSend({ overrideText: text });
-  };
-
-  const handleSend = async (opts = {}) => {
+  const handleSend = async () => {
     if (isSending) return;
-    if (!activeSession) return;
-
-    const overrideText = opts.overrideText;
-    const text = (overrideText ?? input).trim();
+    const text = input.trim();
 
     if (!text && !selectedImage) return;
+    if (!activeSession) return;
 
     setIsSending(true);
-    setIsBotTyping(false);
 
     try {
       const baseMessages = activeSession.messages;
 
-      // 1) user text
+      // 1. Text user
       if (text) {
         appendMessageToActive({
           id: `m_${Date.now()}_user`,
@@ -368,20 +222,18 @@ export default function ChatbotWidget() {
         });
       }
 
-      // 2) ảnh (kèm optional text)
+      // 2. Có ảnh → gửi ảnh
       if (selectedImage) {
         const thisImage = selectedImage;
         setSelectedImage(null);
 
-        // message ảnh: nếu persistable false -> không lưu base64 (tránh full storage)
+        // Hiển thị ảnh (previewUrl là dataURL, lưu được trong localStorage)
         appendMessageToActive({
           id: `m_${Date.now()}_img`,
           sender: "user",
           type: "image",
-          imageUrl: thisImage.persistable ? thisImage.previewUrl : null,
-          text: thisImage.persistable
-            ? "Ảnh bạn vừa gửi"
-            : "Ảnh bạn vừa gửi (không lưu lịch sử để tránh đầy bộ nhớ)",
+          imageUrl: thisImage.previewUrl,
+          text: "Ảnh bạn vừa gửi",
         });
 
         const historyForApi = buildHistoryFromMessages([
@@ -398,13 +250,12 @@ export default function ChatbotWidget() {
             : []),
         ]);
 
-        setIsBotTyping(true);
         const res = await sendImageMessage(thisImage.file, historyForApi);
-        setIsBotTyping(false);
-
         const { reply, orderItems } = res.data || {};
+
         const replyText =
-          reply || "Mình chưa đọc được hình này, bạn thử gửi lại giúp mình nhé.";
+          reply ||
+          "Mình chưa đọc được hình này, bạn thử gửi lại giúp mình nhé.";
 
         appendMessageToActive({
           id: `m_${Date.now()}_bot`,
@@ -423,15 +274,13 @@ export default function ChatbotWidget() {
         return;
       }
 
-      // 3) chỉ text
+      // 3. Chỉ text
       const historyForApi = buildHistoryFromMessages(baseMessages);
 
-      setIsBotTyping(true);
       const res = await sendChatbotMessage({
         message: text,
         history: historyForApi,
       });
-      setIsBotTyping(false);
 
       const replyText =
         res.data?.reply ||
@@ -445,12 +294,19 @@ export default function ChatbotWidget() {
       });
 
       // Đặt bàn nhanh
-      if (res.data?.reservationData) setPendingReservation(res.data.reservationData);
-      else setPendingReservation(null);
+      if (res.data?.reservationData) {
+        setPendingReservation(res.data.reservationData);
+      } else {
+        setPendingReservation(null);
+      }
 
       // Đặt món nhanh
-      if (Array.isArray(res.data?.orderItems) && res.data.orderItems.length > 0) {
-        setPendingOrderItems(res.data.orderItems);
+      if (res.data?.orderItems && Array.isArray(res.data.orderItems)) {
+        if (res.data.orderItems.length > 0) {
+          setPendingOrderItems(res.data.orderItems);
+        } else {
+          setPendingOrderItems(null);
+        }
       } else {
         setPendingOrderItems(null);
       }
@@ -458,8 +314,6 @@ export default function ChatbotWidget() {
       setInput("");
     } catch (err) {
       console.error("Lỗi chatbot:", err);
-      setIsBotTyping(false);
-
       const backendMsg = err?.response?.data?.message;
       appendMessageToActive({
         id: `m_${Date.now()}_error`,
@@ -471,7 +325,6 @@ export default function ChatbotWidget() {
       });
     } finally {
       setIsSending(false);
-      setIsBotTyping(false);
     }
   };
 
@@ -480,6 +333,18 @@ export default function ChatbotWidget() {
     if (!pendingReservation || confirmingReservation) return;
 
     const r = pendingReservation;
+
+    // Nếu chưa đăng nhập, backend có thể trả 403 -> không gọi API, yêu cầu người dùng đăng nhập
+    if (!user) {
+      appendMessageToActive({
+        id: `m_${Date.now()}_auth_req`,
+        sender: "bot",
+        type: "text",
+        text:
+          "Mình không thể gửi yêu cầu đặt bàn thay bạn khi bạn chưa đăng nhập.\nVui lòng đăng nhập hoặc đi tới trang Đặt bàn để nhập thông tin.",
+      });
+      return;
+    }
 
     if (!r.date || !r.time) {
       appendMessageToActive({
@@ -511,7 +376,7 @@ export default function ChatbotWidget() {
         sender: "bot",
         type: "text",
         text:
-          "Mình đã gửi yêu cầu đặt bàn của bạn lên hệ thống ✅\n" +
+          "Mình đã gửi yêu cầu đặt bàn của bạn lên hệ thống. " +
           "Nhân viên sẽ kiểm tra và xác nhận lại trong thời gian sớm nhất nhé!",
       });
 
@@ -536,7 +401,8 @@ export default function ChatbotWidget() {
 
   // Thêm món vào giỏ từ AI
   const handleApplyPendingOrder = (goToCheckout = false) => {
-    if (!pendingOrderItems || !pendingOrderItems.length || processingOrder) return;
+    if (!pendingOrderItems || !pendingOrderItems.length || processingOrder)
+      return;
 
     setProcessingOrder(true);
     try {
@@ -548,7 +414,9 @@ export default function ChatbotWidget() {
           anh: item.anh,
         };
         const qty = item.quantity || 1;
-        for (let i = 0; i < qty; i += 1) addToCart(baseProduct);
+        for (let i = 0; i < qty; i += 1) {
+          addToCart(baseProduct);
+        }
       });
 
       appendMessageToActive({
@@ -556,13 +424,15 @@ export default function ChatbotWidget() {
         sender: "bot",
         type: "text",
         text:
-          "Mình đã thêm các món bạn chọn vào giỏ hàng ✅\n" +
-          "Bạn có thể tiếp tục hỏi thêm hoặc thanh toán bất cứ lúc nào nhé!",
+          "Mình đã thêm các món bạn chọn vào giỏ hàng. " +
+          "Bạn có thể tiếp tục hỏi thêm hoặc chuyển sang trang thanh toán bất cứ lúc nào nhé!",
       });
 
       setPendingOrderItems(null);
 
-      if (goToCheckout) window.location.href = "/checkout";
+      if (goToCheckout) {
+        window.location.href = "/checkout";
+      }
     } finally {
       setProcessingOrder(false);
     }
@@ -570,45 +440,13 @@ export default function ChatbotWidget() {
 
   if (!activeSession) return null;
 
-  // ✅ Quick actions “thông minh”: có loại gửi luôn và loại chèn input
-  const quickSingleActions = [
-    {
-      icon: <FiTag size={12} />,
-      label: "Khuyến mãi",
-      type: "send",
-      text: "Khuyến mãi hôm nay là gì?",
-    },
-    {
-      icon: <FiZap size={12} />,
-      label: "Voucher đổi điểm",
-      type: "send",
-      text: "Mình có voucher đổi điểm nào không?",
-    },
-    {
-      icon: <FiCoffee size={12} />,
-      label: "Gợi ý đồ uống",
-      type: "send",
-      text: "Gợi ý cho mình 3 món bán chạy và ít ngọt nhé.",
-    },
-    {
-      icon: <FiClock size={12} />,
-      label: "Giờ mở cửa",
-      type: "send",
-      text: "Quán mở cửa đến mấy giờ?",
-    },
-    {
-      icon: <FiShoppingCart size={12} />,
-      label: "Đặt món nhanh",
-      type: "input",
-      text: "Mình muốn đặt ",
-    },
-    {
-      icon: <span className="text-[12px]">📅</span>,
-      label: "Đặt bàn",
-      type: "input",
-      text: "Mình muốn đặt bàn ",
-    },
+  const quickSuggestions = [
+    "Khuyến mãi hôm nay là gì?",
+    "Mình có voucher hoặc mã giảm giá nào không?",
+    "Làm sao để đổi điểm lấy voucher?",
+    "Gợi ý cho mình đồ uống ít cafeine",
   ];
+
 
   return (
     <>
@@ -625,7 +463,7 @@ export default function ChatbotWidget() {
 
       {/* Widget chính */}
       {isOpen && (
-        <div className="fixed bottom-4 right-4 z-40 w-[392px] max-w-full h-[78vh]">
+        <div className="fixed bottom-4 right-4 z-40 w-[380px] max-w-full h-[75vh]">
           <div className="w-full h-full rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 shadow-2xl border border-orange-100/70 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-400 text-white">
@@ -637,32 +475,20 @@ export default function ChatbotWidget() {
                 <div className="flex flex-col gap-0.5">
                   <span className="font-semibold text-sm">Trợ lý LO Coffee</span>
                   <span className="text-[11px] opacity-90">
-                    Online • Menu • Voucher • Khuyến mãi • Đặt bàn • Đặt món
+                    Online • Hỏi mình về menu, khuyến mãi, gợi ý đồ uống hoặc gửi hình để tư vấn nhé!
                   </span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleClearMessages}
-                  className="px-2 py-1 rounded-lg bg-white/15 hover:bg-white/20 text-[11px]"
-                  title="Xóa tin nhắn trong cuộc trò chuyện hiện tại"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="p-1 rounded-full hover:bg-white/15"
-                  title="Đóng"
-                >
-                  <FiX size={18} />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-full hover:bg-white/15"
+              >
+                <FiX size={18} />
+              </button>
             </div>
 
-            {/* Session bar */}
+            {/* Chọn session + đổi tên + tạo mới */}
             <div className="px-4 py-2 border-b border-orange-100/70 bg-orange-50/80 flex items-center gap-2 text-[11px]">
               <select
                 value={activeSession.id}
@@ -670,7 +496,6 @@ export default function ChatbotWidget() {
                   setActiveSessionId(e.target.value);
                   setPendingReservation(null);
                   setPendingOrderItems(null);
-                  setSelectedImage(null);
                 }}
                 className="flex-1 text-[11px] rounded-lg border border-orange-200 bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
               >
@@ -694,7 +519,6 @@ export default function ChatbotWidget() {
                 type="button"
                 onClick={handleNewSession}
                 className="px-2 py-1 rounded-lg bg-white text-orange-600 text-[11px] font-semibold border border-orange-300 hover:bg-orange-100"
-                title="Tạo chat mới"
               >
                 Chat mới
               </button>
@@ -709,7 +533,7 @@ export default function ChatbotWidget() {
               </button>
             </div>
 
-            {/* Rename title */}
+            {/* Ô đổi tên */}
             {editingTitle && (
               <div className="px-4 py-2 border-b border-orange-100 bg-orange-50/80 flex items-center gap-2">
                 <input
@@ -739,37 +563,8 @@ export default function ChatbotWidget() {
               </div>
             )}
 
-            {/* Quick actions */}
-            <div className="px-3 py-2 border-b border-orange-100/70 bg-white/80">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-semibold text-gray-700">
-                  Quick actions
-                </span>
-                <span className="text-[10px] text-gray-500">
-                  (bấm để gửi / chèn nhanh)
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {quickSingleActions.map((a) => (
-                  <QuickActionButton
-                    key={a.label}
-                    icon={a.icon}
-                    label={a.label}
-                    onClick={async () => {
-                      if (a.type === "send") {
-                        await quickSendText(a.text);
-                      } else {
-                        setInput((prev) => (prev?.trim() ? prev : a.text));
-                        inputRef.current?.focus();
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
             {/* Nội dung chat */}
-            <div className="flex-1 overflow-y-auto px-3 py-3 bg-gradient-to-b from-[#FFF7ED] via-[#FFF3E0] to-[#FFEBD6] space-y-3 text-xs">
+            <div className="flex-1 overflow-y-auto px-3 py-3 bg-gradient-to-b from-[#FFF7ED] via-[#FFF3E0] to-[#FFEBD6] space-y-3 text-xs custom-scrollbar">
               {activeSession.messages.map((m) => (
                 <div
                   key={m.id}
@@ -784,19 +579,13 @@ export default function ChatbotWidget() {
                         : "bg-white/95 text-gray-800 rounded-bl-sm border border-orange-100/60"
                     }`}
                   >
-                    {m.type === "image" && (
+                    {m.type === "image" && m.imageUrl && (
                       <div className="mb-1">
-                        {m.imageUrl ? (
-                          <img
-                            src={m.imageUrl}
-                            alt="Ảnh bạn gửi"
-                            className="w-full max-w-[220px] rounded-xl object-cover border border-orange-100/70"
-                          />
-                        ) : (
-                          <div className="text-[11px] text-gray-600">
-                            📎 Ảnh đã gửi (không lưu lịch sử để tránh đầy bộ nhớ)
-                          </div>
-                        )}
+                        <img
+                          src={m.imageUrl}
+                          alt="Ảnh bạn gửi"
+                          className="w-full max-w-[220px] rounded-xl object-cover border border-orange-100/70"
+                        />
                       </div>
                     )}
                     {m.text && (
@@ -808,9 +597,6 @@ export default function ChatbotWidget() {
                 </div>
               ))}
 
-              {/* Typing indicator: chỉ dùng isBotTyping để tránh trùng */}
-              {isBotTyping && <TypingIndicator />}
-
               {/* Panel đặt bàn nhanh */}
               {pendingReservation && (
                 <div className="mt-2 p-3 bg-white/95 border border-orange-200 rounded-lg shadow-sm text-[11px] space-y-2">
@@ -820,7 +606,6 @@ export default function ChatbotWidget() {
                     </span>
                     <span>Xác nhận đặt bàn qua chatbot</span>
                   </div>
-
                   <div className="space-y-1 text-gray-800">
                     <div>Tên: {pendingReservation.name || "Không rõ"}</div>
                     <div>SDT: {pendingReservation.phone || "Không rõ"}</div>
@@ -835,7 +620,6 @@ export default function ChatbotWidget() {
                       <div>Ghi chú: {pendingReservation.note}</div>
                     )}
                   </div>
-
                   <div className="pt-1 flex flex-wrap justify-end gap-2">
                     <button
                       type="button"
@@ -922,19 +706,19 @@ export default function ChatbotWidget() {
               <div className="px-3 pt-2 pb-2 bg-orange-50 border-t border-orange-100 text-[11px]">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <img
-                      src={selectedImage.previewUrl}
-                      alt="Preview"
-                      className="w-11 h-11 rounded-lg object-cover border border-orange-200 shadow-sm"
-                    />
+                    <div className="relative">
+                      <img
+                        src={selectedImage.previewUrl}
+                        alt="Preview"
+                        className="w-11 h-11 rounded-lg object-cover border border-orange-200 shadow-sm"
+                      />
+                    </div>
                     <div className="flex flex-col">
                       <span className="font-semibold text-gray-800">
                         Ảnh sẽ được gửi kèm tin nhắn tiếp theo
                       </span>
                       <span className="text-[10px] text-gray-500">
-                        {selectedImage.persistable
-                          ? "Ảnh sẽ được lưu trong lịch sử (an toàn)."
-                          : "Ảnh quá lớn nên sẽ KHÔNG lưu lịch sử để tránh đầy bộ nhớ."}
+                        Bạn có thể mô tả thêm: ví dụ "Gợi ý món giống như ly này" để mình tư vấn chuẩn hơn.
                       </span>
                     </div>
                   </div>
@@ -942,7 +726,6 @@ export default function ChatbotWidget() {
                     type="button"
                     onClick={() => setSelectedImage(null)}
                     className="text-gray-400 hover:text-gray-700"
-                    title="Bỏ ảnh"
                   >
                     <FiX size={16} />
                   </button>
@@ -952,6 +735,20 @@ export default function ChatbotWidget() {
 
             {/* Input */}
             <div className="px-3 pt-2 pb-3 border-t border-orange-100 bg-white/95">
+              {/* quick suggestions */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {quickSuggestions.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setInput(q)}
+                    className="px-2 py-1 rounded-full bg-orange-50 text-[10px] text-orange-700 border border-orange-100 hover:bg-orange-100"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex items-end gap-2">
                 <button
                   type="button"
@@ -963,7 +760,6 @@ export default function ChatbotWidget() {
                 </button>
 
                 <textarea
-                  ref={inputRef}
                   rows={1}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -973,22 +769,17 @@ export default function ChatbotWidget() {
                       handleSend();
                     }
                   }}
-                  placeholder="Nhập câu hỏi của bạn... (Enter để gửi, Shift+Enter xuống dòng)"
+                  placeholder="Nhập câu hỏi của bạn..."
                   className="flex-1 max-h-24 rounded-xl border border-gray-200 px-3 py-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400 bg-white/90"
                 />
 
                 <button
                   type="button"
-                  onClick={() => handleSend()}
+                  onClick={handleSend}
                   disabled={isSending}
                   className="p-2 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-white disabled:opacity-60 shadow-sm shadow-orange-300/60"
-                  title="Gửi"
                 >
-                  {isSending ? (
-                    <FiZap size={18} className="animate-pulse" />
-                  ) : (
-                    <FiSend size={18} />
-                  )}
+                  <FiSend size={18} />
                 </button>
               </div>
 
