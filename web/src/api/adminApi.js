@@ -145,7 +145,7 @@ export const deleteOrderAdmin = (id) =>
 // 🔹 Thống kê đơn hàng theo tuần/tháng
 // BE: GET /api/admin/orders-stats?period=week|month
 export const getAdminOrderStats = (params) =>
-  adminApi.get("/admin/orders-stats", { params });
+  adminApi.get("/admin/orders/stats", { params });
 
 // 🔹 Export đơn hàng (CSV mở bằng Excel)
 // BE: GET /api/admin/orders/export?period=week|month
